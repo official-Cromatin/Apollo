@@ -1,0 +1,53 @@
+name: Issue Report
+description: You found a bug or something does not work as it should, report it here
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "*Before you create an issue, please look first if an issue already exists that your concern is treated*"
+
+  - type: textarea
+    attributes:
+      label: Issue description
+      description: A clear description of the issue you ran into
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: If there are specific steps that need to be taken to reproduce the issue, list them here.
+      placeholder: |
+        1. Start the Bot
+        2. Execute some command
+        3. See some result (or not)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: bot-version
+    attributes:
+      label: Bot release version
+      description: What version of the Bot are you using?
+      options:
+        - Pre 1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: discordpy-version
+    attributes:
+      label: Discord.py version
+      description: What version of the discord.py libary are you using?
+      options:
+        - 2.4.0
+
+  - type: textarea
+    attributes:
+      label: Other relevant Information
+      description: Do you have any other information that could help us to trace the error back?
+
+  - type: input
+    attributes:
+      label: "If you have a log, you can enter the link here"
+      description: "Put the [gist](https://gist.github.com/) / [pastebin](https://pastebin.com/) / etc link here."

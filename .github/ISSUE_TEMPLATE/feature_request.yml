@@ -1,0 +1,14 @@
+name: Feature Request
+description: You are missing an function or have a good idea? Suggest it here
+labels: ["feature-request"]
+body:
+  - type: markdown
+    attributes:
+      value: "*Before you create an issue, please look first if an issue already exists that your concern is treated*"
+
+  - type: textarea
+    attributes:
+      label: Issue description
+      description: A detailed description of the feature you request. The more descriptive you are, the more likely the implementation will satisfy you
+    validations:
+      required: true
