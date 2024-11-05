@@ -1,3 +1,8 @@
+# Custom additions
+.DS_Store
+pastebin.txt
+*.ini
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
