@@ -2,6 +2,7 @@
 .DS_Store
 pastebin.txt
 *.ini
+test*.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
