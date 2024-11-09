@@ -51,6 +51,12 @@ class Apollo_Bot(commands.Bot):
     def set_portal(self, portal:Portal):
         self.__portal = portal
 
+    async def setup_hook(self):
+        # Register cogs to handle commands
+        for cog_name in ["reload"]:
+            await self.load_extension(f"cogs.{cog_name}")
+        await self.tree.sync()
+
     async def on_interaction(self, interaction: discord.Interaction):
         """Called when an interaction happened"""
         match interaction.type.name:
