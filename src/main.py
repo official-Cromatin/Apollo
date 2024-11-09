@@ -19,17 +19,21 @@ Custom_Logger.initialize()
 import logging
 app_logger = logging.getLogger("app")
 app_logger.info("Starting Apollo ...")
+startup_logger = logging.getLogger("app.startup")
 
 # Import all the remaining dependencies
 import discord
 from discord.ext import commands
 from pathlib import Path
 from utils.portal import Portal
-from utils.datetime_tools import get_elapsed_time_smal, get_elapsed_time_big
+from utils.datetime_tools import get_elapsed_time_smal, get_elapsed_time_big, get_elapsed_time_milliseconds
 from utils.adv_configparser import Advanced_ConfigParser
 import re
 import traceback
 import asyncio
+from utils.database.psql_adapter import PostgreSQL_Adapter
+from utils.database.main_controller import Main_DB_Controller
+import sys
 
 source_path = Path(__file__).resolve()
 base_path = source_path.parents[1]
@@ -42,6 +46,7 @@ class Apollo_Bot(commands.Bot):
         super().__init__(command_prefix=None, help_command=None, intents=intents)
 
         self.__portal:Portal
+        self.__first_on_ready = False
 
     def set_portal(self, portal:Portal):
         self.__portal = portal
@@ -51,7 +56,7 @@ class Apollo_Bot(commands.Bot):
         match interaction.type.name:
             case discord.InteractionType.application_command.name:
                 print("Interaction with bot", interaction.command.name)
-                self.__portal.no_executed_commands += 1
+                # self.__portal.no_executed_commands += 1
             case discord.InteractionType.ping.name:
                 # print("App got pinged by discord")
                 pass
@@ -64,6 +69,39 @@ class Apollo_Bot(commands.Bot):
             case discord.InteractionType.component.name:
                 # print("Component interaction")
                 pass
+
+    async def on_connect(self):
+        """A coroutine to be called to setup the bot, after the bot is logged in but before it has connected to the Websocket"""
+        if not self.__first_on_ready:
+            routine_start = datetime.now().timestamp()
+            startup_logger.info("Starting execution of pre startup routine ...")
+            await self.change_presence(status = discord.Status.dnd, activity = discord.CustomActivity("Executing pre startup routine (0/2)"))
+
+            # Open the config for the database credentials
+            database_config = Advanced_ConfigParser(Path.joinpath(base_path, "config", "database.ini"))
+            portal.database_config = database_config
+            await self.change_presence(status = discord.Status.dnd, activity = discord.CustomActivity("Executing pre startup routine (1/2)"))
+
+            try:
+                # Create the database connection
+                psql_adapter = await PostgreSQL_Adapter.create_adapter(
+                    database_config["POSTGRESQL"]["USERNAME"],
+                    database_config["POSTGRESQL"]["PASSWORD"],
+                    database_config["POSTGRESQL"]["DATABASE"],
+                    database_config["POSTGRESQL"]["ADRESS"],
+                    Path.joinpath(base_path, "src"),
+                    int(database_config["POSTGRESQL"]["PORT"])
+                )
+                controller = Main_DB_Controller(psql_adapter)
+                portal.database = controller
+                await self.change_presence(status = discord.Status.online, activity = None)
+            except Exception as error:
+                traceback.print_exception(type(error), error, error.__traceback__)
+
+            self.__first_on_ready = True
+            startup_logger.info(f"Executed pre startup routine successfully after {get_elapsed_time_milliseconds(datetime.now().timestamp() - routine_start)}")
+        else:
+            startup_logger.info("Startup routine allready executed, omitting this execution")
 
     async def on_ready(self):
         app_logger.info(f"Successfully logged in (after {get_elapsed_time_smal(datetime.now().timestamp() - startup_time)}) as {self.user}")
@@ -84,6 +122,7 @@ else:
 portal = Portal.instance()
 portal.bot_config = bot_config
 portal.STARTUP_TIMESTAMP = startup_time
+bot.set_portal(portal)
 
 # Setup handlers to handle states of command execution
 @bot.tree.error
