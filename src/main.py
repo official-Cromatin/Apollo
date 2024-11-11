@@ -43,6 +43,7 @@ class Apollo_Bot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.messages = True
+        intents.members = True
         super().__init__(command_prefix=None, help_command=None, intents=intents)
 
         self.__portal:Portal
@@ -53,7 +54,7 @@ class Apollo_Bot(commands.Bot):
 
     async def setup_hook(self):
         # Register cogs to handle commands
-        for cog_name in ["reload", "economy.currency"]:
+        for cog_name in ["reload", "economy.currency", "economy.leaderboard"]:
             await self.load_extension(f"cogs.{cog_name}")
         await self.tree.sync()
 
