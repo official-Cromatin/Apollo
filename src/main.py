@@ -34,6 +34,7 @@ import asyncio
 from utils.database.psql_adapter import PostgreSQL_Adapter
 from utils.database.main_controller import Main_DB_Controller
 import sys
+from utils.button_interaction_handler import Button_Interaction_Handler
 
 source_path = Path(__file__).resolve()
 base_path = source_path.parents[1]
@@ -69,22 +70,27 @@ class Apollo_Bot(commands.Bot):
 
     async def on_interaction(self, interaction: discord.Interaction):
         """Called when an interaction happened"""
-        match interaction.type.name:
-            case discord.InteractionType.application_command.name:
-                print("Interaction with bot", interaction.command.name)
-                # self.__portal.no_executed_commands += 1
-            case discord.InteractionType.ping.name:
-                # print("App got pinged by discord")
-                pass
-            case discord.InteractionType.autocomplete.name:
-                # print("Interaction with autocomplete")
-                pass
-            case discord.InteractionType.modal_submit.name:
-                # print("Modal interaction submitted")
-                pass
-            case discord.InteractionType.component.name:
-                # print("Component interaction")
-                pass
+        try:
+            match interaction.type.name:
+                case discord.InteractionType.application_command.name:
+                    print("Interaction with bot", interaction.command.name)
+                    # self.__portal.no_executed_commands += 1
+                case discord.InteractionType.ping.name:
+                    print("App got pinged by discord")
+                case discord.InteractionType.autocomplete.name:
+                    print("Interaction with autocomplete")
+                case discord.InteractionType.modal_submit.name:
+                    print("Modal interaction submitted")
+                case discord.InteractionType.component.name:
+                    match discord.ComponentType(interaction.data["component_type"]):
+                        case discord.ComponentType.button:
+                            print("Component interaction with button")
+                            await Button_Interaction_Handler.handle_interaction(interaction)
+                        case _:
+                            print(f"Component interaction with {interaction.data['component_type']}")
+                            print(type(discord.ComponentType.button), type(interaction.data['component_type']))
+        except Exception as error:
+            traceback.print_exception(type(error), error, error.__traceback__)
 
     async def on_connect(self):
         """A coroutine to be called to setup the bot, after the bot is logged in but before it has connected to the Websocket"""
