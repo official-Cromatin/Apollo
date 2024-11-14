@@ -52,6 +52,15 @@ class Apollo_Bot(commands.Bot):
     def set_portal(self, portal:Portal):
         self.__portal = portal
 
+    async def hybrid_get_user(self, user_id:int) -> discord.User | None:
+        """Returns a user with the given ID
+        
+        First tries [`get_user`](https://discordpy.readthedocs.io/en/stable/api.html?highlight=get_user#discord.Client.get_user) and if it fails, [`fetch_user`](https://discordpy.readthedocs.io/en/stable/api.html?highlight=fetch_user#discord.Client.fetch_user) as an fallback"""
+        user = self.get_user(user_id)
+        if user:
+            return user
+        return await self.fetch_user(user_id)
+
     async def setup_hook(self):
         # Register cogs to handle commands
         for cog_name in ["reload", "economy.currency", "economy.leaderboard"]:
