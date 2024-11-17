@@ -63,3 +63,15 @@ class Main_DB_Controller(DatabaseController):
     async def initialize_pickup_ready(self, user_id:int):
         """Inserts the row into the table, the first time a user accesses the data"""
         await self._adapter.execute_query("init_last_pickup", (user_id, ))
+
+    async def get_dailymoney_roles(self, guild_id:int) -> list[tuple]:
+        """Querys and returns dailymoney roles for a certain guild"""
+        rows = await self._adapter.execute_query("get_dailymoney_roles", (guild_id, ))
+        roles_data = []
+        for role_data in rows:
+            roles_data.append((
+                role_data["role_priority"],
+                role_data["role_id"],
+                role_data["daily_salary"]
+            ))
+        return roles_data
