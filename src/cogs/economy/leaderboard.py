@@ -6,7 +6,7 @@ from cogs.base_cog import Base_Cog
 import math
 from utils.portal import Portal
 from utils.database.main_controller import Main_DB_Controller
-from utils.button_interaction_handler import Button_Interaction_Handler
+from utils.interaction_handler.button import Button_Interaction_Handler
 
 from datetime import datetime
 from utils.datetime_tools import get_elapsed_time_milliseconds

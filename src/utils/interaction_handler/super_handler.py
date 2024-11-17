@@ -2,15 +2,15 @@ import discord
 import logging
 from functools import partial
 
-class Button_Interaction_Handler():
+class Super_Handler():
     """Provides the possibility to link an interaction callback function of an cog, to an interaction the bot recieves.
     
     To work properly, the custom id of the button MUST start with the given prefix for the link function"""
-    logger = logging.getLogger("utils.btnh")
+    logger: logging.Logger
     lookup_table:dict[str, complex] = {}
 
     @classmethod
-    def __get_matching_keys(cls, button_id:str) -> list[str]:
+    def _get_matching_keys(cls, button_id:str) -> list[str]:
         """Compares the prefixes of all known handlers, to the start of the button id"""
         matching_keys = []
         
@@ -54,7 +54,7 @@ class Button_Interaction_Handler():
     async def handle_interaction(cls, interaction: discord.Interaction):
         """Called when an interaction with an button happened and needs to be handled"""
         button_id = interaction.data["custom_id"]
-        matching_keys = cls.__get_matching_keys(button_id)
+        matching_keys = cls._get_matching_keys(button_id)
         number_of_keys = len(matching_keys)
         if number_of_keys > 1:
             cls.logger.error(f"The button id ({button_id}), matches with multiple callback handlers ({' '.join(matching_keys).strip(' ')})")

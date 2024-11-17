@@ -4,7 +4,7 @@ from discord.ext import commands
 import logging
 from cogs.base_cog import Base_Cog
 from utils.portal import Portal
-from utils.button_interaction_handler import Button_Interaction_Handler
+from utils.interaction_handler.button import Button_Interaction_Handler
 
 class XYZ_Command(Base_Cog):
     def __init__(self, bot):

@@ -34,7 +34,7 @@ import asyncio
 from utils.database.psql_adapter import PostgreSQL_Adapter
 from utils.database.main_controller import Main_DB_Controller
 import sys
-from utils.button_interaction_handler import Button_Interaction_Handler
+from utils.interaction_handler.button import Button_Interaction_Handler
 
 source_path = Path(__file__).resolve()
 base_path = source_path.parents[1]
