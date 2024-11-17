@@ -35,6 +35,8 @@ from utils.database.psql_adapter import PostgreSQL_Adapter
 from utils.database.main_controller import Main_DB_Controller
 import sys
 from utils.interaction_handler.button import Button_Interaction_Handler
+from utils.interaction_handler.role_select import RoleSelect_Interaction_Handler
+from utils.interaction_handler.custom_select import Select_Interaction_Handler
 
 source_path = Path(__file__).resolve()
 base_path = source_path.parents[1]
@@ -86,6 +88,12 @@ class Apollo_Bot(commands.Bot):
                         case discord.ComponentType.button:
                             print("Component interaction with button")
                             await Button_Interaction_Handler.handle_interaction(interaction)
+                        case discord.ComponentType.role_select:
+                            print("Component interaction with role-select menu")
+                            await RoleSelect_Interaction_Handler.handle_interaction(interaction)
+                        case discord.ComponentType.select:
+                            print("Component interaction with custom select menu")
+                            await Select_Interaction_Handler.handle_interaction(interaction)
                         case _:
                             print(f"Component interaction with {interaction.data['component_type']}")
                             print(type(discord.ComponentType.button), type(interaction.data['component_type']))

@@ -75,3 +75,40 @@ class Main_DB_Controller(DatabaseController):
                 role_data["daily_salary"]
             ))
         return roles_data
+    
+    async def check_dailymoney_role_presence(self, guild_id:int, role_id:int) -> bool:
+        """Checks if the specified entry for a certain guild under the condition of the role, is present"""
+        rows = await self._adapter.execute_query("check_dailymoney_role_present", (guild_id, role_id))
+        if rows:
+            return True
+        return False
+    
+    async def create_add_role_message(self, main_message_id:int, message_id:int):
+        """Creates a row in the "dailymoney_role_settings" table to store informations about the message"""
+        await self._adapter.execute_query("add_role_message", (main_message_id, message_id))
+
+    async def get_role_message_data(self, message_id:int):
+        """Returns the data for a certain """
+        rows = await self._adapter.execute_query("get_role_message_data", (message_id, ))
+        row = rows[0]
+        return (row["role_id"], row["priority"], row["daily_salary"])
+    
+    async def set_role_for_role_message(self, message_id:int, role_id:int):
+        """Updates the role_id field in the row matching the message id"""
+        await self._adapter.execute_query("set_dailymoney_settings_role", (role_id, message_id))
+
+    async def set_priority_for_role_message(self, message_id:int, priority:int):
+        """Updates the priority field in the row matching the message id"""
+        await self._adapter.execute_query("set_datilymoney_settings_priority", (priority, message_id))
+
+    async def set_salary_for_role_message(self, message_id:int, daily_salary:int):
+        """Updates the daily salary field in the row matching the message id"""
+        await self._adapter.execute_query("set_dailymoney_settings_salary", (daily_salary, message_id))
+
+    async def add_dailymoney_role(self, guild_id:int, role_priority:int, role_id:int, daily_salary:int):
+        """Adds a row to the dailymoney_roles table, to respect the addition of the dailymoney role"""
+        await self._adapter.execute_query("add_dailymoney_role", (guild_id, role_priority, role_id, daily_salary))
+
+    async def remove_dailymoney_add_role_message(self, message_id:int):
+        """Deletes the specified row of the dailymoney_add_settings table"""
+        await self._adapter.execute_query("remove_dailymoney_add_settings", (message_id, ))
