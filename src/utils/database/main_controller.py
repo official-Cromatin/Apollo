@@ -91,7 +91,7 @@ class Main_DB_Controller(DatabaseController):
         """Returns the data for a certain """
         rows = await self._adapter.execute_query("get_role_message_data", (message_id, ))
         row = rows[0]
-        return (row["role_id"], row["priority"], row["daily_salary"])
+        return (row["role_id"], row["priority"], row["daily_salary"], row["main_message_id"])
     
     async def set_role_for_role_message(self, message_id:int, role_id:int):
         """Updates the role_id field in the row matching the message id"""

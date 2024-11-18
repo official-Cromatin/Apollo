@@ -11,10 +11,10 @@ from tabulate import tabulate
 
 class Dailymoney_Setup_Command(Base_Cog):
     def __init__(self, bot):
-        self.__bot = bot
+        self.__bot:discord.Client = bot
         self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.maintenance"))
-    
+
     def get_custom_select(self, placeholder:str, min_values:int, max_values:int, custom_id:str, min_priority:int, max_priority:int, priority_increment:int) -> discord.ui.Select:
         """"""
         menu = discord.ui.Select(placeholder = placeholder, min_values = min_values, max_values = max_values, custom_id = custom_id)
@@ -82,17 +82,23 @@ class Dailymoney_Setup_Command(Base_Cog):
         if roles:
             table_data = []
             for role_data in roles:
+                role_name = guild.get_role(role_data[1])
+                if role_name is None:
+                    role_name = "[ROLE DELETED]"
+
                 table_data.append([
                     role_data[0],
-                    guild.get_role(role_data[1]),
+                    role_name,
                     role_data[2]
                 ])
+
+            table_data = sorted(table_data, key = lambda x: x[0])
 
             headers = ["Priority", "Name of role", "Salary"]
             table_content = tabulate(table_data, headers = headers, tablefmt = "rounded_outline")
         else:
             table_content = "No roles have been defined yet."
-
+        
         return_str = f"""*Note: To see the manual for this featureset, click the help button below*
 Current roles and their priorities:
 ```
@@ -101,6 +107,24 @@ Current roles and their priorities:
 
         return return_str
     
+    async def update_main_view(self, guild:discord.Guild, channel_id:int, message_id:int):
+        """Updates the main view message"""
+        print("CHANNEL ID", channel_id)
+        channel:discord.guild.GuildChannel = self.__bot.get_channel(channel_id)
+        if channel:
+            print("CHANNEL NAME", channel.name)
+            try:
+                message:discord.Message = await channel.fetch_message(message_id)
+                if message.author == self.__bot.user:
+                    embed = discord.Embed(title = "Influencing roles for the daily salary on this server", description = await self.get_main_view_description(guild))
+                    embed.set_footer(text = "Tip: To edit priorities and the amount of income, use the buttons below")
+                    await message.edit(embed = embed)
+                self._logger.debug(f"Successfully updated main view message {message_id}")
+            except discord.NotFound:
+                self._logger.error(f"Message {message_id} in {channel_id} was not found. Maybe deleted?")
+            except discord.Forbidden:
+                self._logger.error(f"Insufficient permissions to load message {message_id} in {channel_id}")
+
     setup_group = app_commands.Group(name = "setup", description = "Contains commands neccessary to setup different modules")
     @setup_group.command(name = "dailymoney", description = "Opens the main setup view for the dailymoney configuration")
     async def setup_dailymoney(self, ctx: discord.Interaction):
@@ -137,6 +161,7 @@ Current roles and their priorities:
         await ctx.response.edit_message(
             embed = self.get_add_role_embed(message_data[0], message_data[1], message_data[2]),
             view = self.get_add_role_view(message_data[0], message_data[1], message_data[2]))
+        self._logger.debug(f"Updated 'add role' view message {ctx.message.id}")
 
     async def callback_select_priority(self, ctx: discord.Interaction):
         """Called when a user interacts with the priority selector of the "add_role" view"""
@@ -147,6 +172,7 @@ Current roles and their priorities:
         await ctx.response.edit_message(
             embed = self.get_add_role_embed(message_data[0], message_data[1], message_data[2]),
             view = self.get_add_role_view(message_data[0], message_data[1], message_data[2]))
+        self._logger.debug(f"Updated 'add role' view message {ctx.message.id}")
     
     async def callback_select_daily_salary(self, ctx: discord.Interaction):
         """Called when a user interacts with the daily income selector of the "add role" view"""
@@ -157,6 +183,7 @@ Current roles and their priorities:
         await ctx.response.edit_message(
             embed = self.get_add_role_embed(message_data[0], message_data[1], message_data[2]),
             view = self.get_add_role_view(message_data[0], message_data[1], message_data[2]))
+        self._logger.debug(f"Updated 'add role' view message {ctx.message.id}")
         
     async def callback_add_save(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Save" button of the "add role" view"""
@@ -169,7 +196,7 @@ Current roles and their priorities:
         await ctx.response.send_message("Successfully added the role.", ephemeral = True)
         await self.__portal.database.remove_dailymoney_add_role_message(ctx.message.id)
         await ctx.message.delete()
-        await self.update_main_view(ctx.guild, ctx.channel)
+        await self.update_main_view(ctx.guild, ctx.channel.id, message_data[3])
 
     async def callback_add_discard(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Discard" button of the "add role" view"""

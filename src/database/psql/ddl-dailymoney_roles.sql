@@ -6,5 +6,5 @@ CREATE TABLE "dailymoney_roles" (
     "role_priority" smallint NOT NULL,
     "role_id" bigint NOT NULL,
     "daily_salary" smallint NOT NULL,
-    PRIMARY KEY("guild_id")
+    PRIMARY KEY("role_id")
 );
