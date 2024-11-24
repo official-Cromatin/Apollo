@@ -138,26 +138,36 @@ class Dailymoney_Setup_Command(Base_Cog):
             f"```{table_content}```"
         )
     
-    async def update_main_view(self, guild:discord.Guild, channel_id:int, message_id:int):
+    async def update_main_view(self, ctx:discord.Interaction, message_id:int):
         """Updates the main view message"""
         # Get channel
-        channel:discord.guild.GuildChannel = self.__bot.get_channel(channel_id)
+        channel:discord.guild.GuildChannel = self.__bot.get_channel(ctx.channel_id)
         if channel:
             try:
                 # Fetch message
                 message:discord.Message = await channel.fetch_message(message_id)
                 # Update the message if the bot was the author of the message
                 if message.author == self.__bot.user:
-                    embed = discord.Embed(title = "Influencing roles for the daily salary on this server", description = await self.get_main_view_description(guild))
+                    embed = discord.Embed(title = "Influencing roles for the daily salary on this server", description = await self.get_main_view_description(ctx.guild))
                     embed.set_footer(text = "Tip: To edit priorities and the amount of income, use the buttons below")
                     await message.edit(embed = embed)
                     self._logger.debug(f"Successfully updated main view message {message_id}")
                 else:
-                    self._logger.error(f"Message {message_id} in {channel_id} was not created by the bot")
+                    self._logger.error(f"Message {message_id} in {ctx.channel_id} was not created by the bot")
             except discord.NotFound:
-                self._logger.error(f"Message {message_id} in {channel_id} was not found. Maybe deleted?")
+                self._logger.error(f"Message {message_id} in {ctx.channel_id} was not found. Maybe deleted?")
             except discord.Forbidden:
-                self._logger.error(f"Insufficient permissions to load message {message_id} in {channel_id}")
+                self._logger.error(f"Insufficient permissions to load message {message_id} in {ctx.channel_id}")
+
+    async def update_edit_view(self, ctx:discord.Interaction):
+        """Updates the edit role view message. Involves creating the embed aswell as the view"""
+        message_data = await self.__portal.database.get_role_message_data(ctx.message.id)
+        view_type = "add" if message_data[4] == 0 else "edit"
+
+        await ctx.response.edit_message(
+            embed = self.get_role_embed("Add additional role", message_data[0], message_data[1], message_data[2]),
+            view = self.get_role_view(view_type, message_data[0], message_data[1], message_data[2]))
+        self._logger.debug(f"Updated '{view_type} role' view message {ctx.message.id}")
 
     # Callback handlers used to create additional views
     async def callback_button_add_role(self, ctx: discord.Interaction):
@@ -167,7 +177,7 @@ class Dailymoney_Setup_Command(Base_Cog):
 
         await ctx.response.send_message(embed = embed, view = view)
         message: discord.InteractionMessage = await ctx.original_response()
-        await self.__portal.database.create_add_role_message(ctx.message.id, message.id)
+        await self.__portal.database.create_role_message(ctx.message.id, message.id, 0)
 
     async def callback_button_edit(self, ctx: discord.Interaction):
         """Called when a user interacts with the "edit role settings" button of the main view"""
@@ -176,80 +186,99 @@ class Dailymoney_Setup_Command(Base_Cog):
 
         await ctx.response.send_message(embed = embed, view = view)
         message: discord.InteractionMessage = await ctx.original_response()
-        await self.__portal.database.create_add_role_message(ctx.message.id, message.id)
+        await self.__portal.database.create_role_message(ctx.message.id, message.id, 1)
 
     async def callback_button_help(self, ctx: discord.Interaction):
         """Called when a user interacts with the "help" button of the main view"""
         embed = discord.Embed(
             title = "Description of the scope of functions",
-            description = """
-### Main view
-This view shows you (in order of priority) which priority they have and how much income they receive per day
-It allows you to open other settings windows, but only one window can be opened at a time!
+            description = (
+                "### Main view\n"
+                "This view shows you (in order of priority) which priority they have and how much income they receive per day\n"
+                "It allows you to open other settings windows, but only one window can be opened at a time!\n"
 
-### Add new role
-Before a new role can be added, you must select the role itself, its priority and the amount of daily salary
+                "### Add new role\n"
+                "Before a new role can be added, you must select the role itself, its priority and the amount of daily salary\n"
 
-### Change priority
-If you want to change aspects such as the priority or amount of daily salary, you must use this configuration view.
-It also allows you to remove a role directly, for which you only need to select the role
+                "### Change priority\n"
+                "If you want to change aspects such as the priority or amount of daily salary, you must use this configuration view.\n"
+                "It also allows you to remove a role directly, for which you only need to select the role\n"
 
-### Remove role
-A role can be removed here, remember that the action cannot be revoked!""")
-        
+                "### Remove role\n"
+                "A role can be removed here, remember that the action cannot be revoked!\n"
+            )
+        )
         await ctx.response.send_message(embed = embed, ephemeral = True)
 
     # Callback handlers for select menus
     async def callback_select_role(self, ctx: discord.Interaction):
         """Called when a user interacts with the role selector of the "add role" view"""
         selected_role_id = int(ctx.data["values"][0])
-        if await self.__portal.database.check_dailymoney_role_presence(ctx.guild_id, selected_role_id):
-            await ctx.response.send_message("This role is already selected!", ephemeral = True)
-            return
+        guild_role_ids:list[int] = await self.__portal.database.get_role_ids_for_guild(ctx.guild_id)
+        match await self.__portal.database.get_dailymoney_edit_mode(ctx.message.id):
+            case 0: # Add additional role
+                # Check if selected role is part of dailymoney roles on that guild
+                if selected_role_id in guild_role_ids:
+                    await ctx.response.send_message("This role is already selected!\nSelect an role that hasnt been added yet", ephemeral = True)
+                    return
+                
+                # Update main message
+                await self.__portal.database.set_role_for_role_message(ctx.message.id, selected_role_id)
+                await self.update_edit_view(ctx)
+                
+            case 1: # Modify settings of existing role
+                # Check that role is part is dailymoney roles
+                if selected_role_id not in guild_role_ids:
+                    await ctx.response.send_message("This role isnt part of the dailymoney roles!\nSelect an role that has been added yet", ephemeral = True)
+                    return
+                
+                # Fill in data specified in the dailymoney_role table
+                await self.__portal.database.update_settings_from_role(selected_role_id, ctx.message.id)
 
-        await self.__portal.database.set_role_for_role_message(ctx.message.id, selected_role_id)
-
-        message_data = await self.__portal.database.get_role_message_data(ctx.message.id)
-        await ctx.response.edit_message(
-            embed = self.get_role_embed("Add additional role", message_data[0], message_data[1], message_data[2]),
-            view = self.get_role_view("add", message_data[0], message_data[1], message_data[2]))
-        self._logger.debug(f"Updated 'add role' view message {ctx.message.id}")
+                # Update main message
+                await self.__portal.database.set_role_for_role_message(ctx.message.id, selected_role_id)
+                await self.update_edit_view(ctx)
 
     async def callback_select_priority(self, ctx: discord.Interaction):
         """Called when a user interacts with the priority selector of the "add_role" view"""
         selected_priority = int(ctx.data["values"][0])
         await self.__portal.database.set_priority_for_role_message(ctx.message.id, selected_priority)
 
-        message_data = await self.__portal.database.get_role_message_data(ctx.message.id)
-        await ctx.response.edit_message(
-            embed = self.get_role_embed("Add additional role", message_data[0], message_data[1], message_data[2]),
-            view = self.get_role_view("add", message_data[0], message_data[1], message_data[2]))
-        self._logger.debug(f"Updated 'add role' view message {ctx.message.id}")
+        # Update the message
+        await self.update_edit_view(ctx)
     
     async def callback_select_daily_salary(self, ctx: discord.Interaction):
         """Called when a user interacts with the daily income selector of the "add role" view"""
         daily_income = int(ctx.data["values"][0])
         await self.__portal.database.set_salary_for_role_message(ctx.message.id, daily_income)
 
-        message_data = await self.__portal.database.get_role_message_data(ctx.message.id)
-        await ctx.response.edit_message(
-            embed = self.get_role_embed("Add additional role", message_data[0], message_data[1], message_data[2]),
-            view = self.get_role_view("add", message_data[0], message_data[1], message_data[2]))
-        self._logger.debug(f"Updated 'add role' view message {ctx.message.id}")
+        # Update the message
+        await self.update_edit_view(ctx)
     
     # Callback handlers for buttons of the "add role" and "edit role" views
     async def callback_add_save(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Save" button of the "add role" view"""
         message_data = await self.__portal.database.get_role_message_data(ctx.message.id)
-        if await self.__portal.database.check_dailymoney_role_presence(ctx.guild_id, message_data[0]):
-            ctx.response.send_message("The role was already added to the dailymoney roles set.\nSelect another role or discard this view", ephemeral = True)
-            return
-        
-        await self.__portal.database.add_dailymoney_role(ctx.guild_id, message_data[1], message_data[0], message_data[2])
-        await ctx.response.send_message("Successfully added the role.", ephemeral = True)
+        guild_role_ids:list[int] = await self.__portal.database.get_role_ids_for_guild(ctx.guild_id)
+
+        match message_data[4]:
+            case 0:
+                if message_data[0] in guild_role_ids:
+                    await ctx.response.send_message("The role was already added to the dailymoney roles set.\nSelect another role or discard this view", ephemeral = True)
+                    return
+                await self.__portal.database.add_dailymoney_role(ctx.guild_id, message_data[1], message_data[0], message_data[2])
+
+
+            case 1:
+                if message_data[0] not in guild_role_ids:
+                    await ctx.response.send_message("The role was already added to the dailymoney roles set.\nSelect another role or discard this view", ephemeral = True)
+                    return
+                await self.__portal.database.update_dailymoney_role(message_data[0], message_data[1], message_data[2])
+
         await self.__portal.database.remove_dailymoney_add_role_message(ctx.message.id)
         await ctx.message.delete()
-        await self.update_main_view(ctx.guild, ctx.channel.id, message_data[3])
+        await self.update_main_view(ctx, message_data[3])
+        await ctx.response.send_message("Successfully altered the settings", ephemeral = True)
 
     async def callback_add_discard(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Discard" button of the "add role" view"""

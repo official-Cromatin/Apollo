@@ -76,22 +76,16 @@ class Main_DB_Controller(DatabaseController):
             ))
         return roles_data
     
-    async def check_dailymoney_role_presence(self, guild_id:int, role_id:int) -> bool:
-        """Checks if the specified entry for a certain guild under the condition of the role, is present"""
-        rows = await self._adapter.execute_query("check_dailymoney_role_present", (guild_id, role_id))
-        if rows:
-            return True
-        return False
     
-    async def create_add_role_message(self, main_message_id:int, message_id:int):
+    async def create_role_message(self, main_message_id:int, message_id:int, edit_mode:int):
         """Creates a row in the "dailymoney_role_settings" table to store informations about the message"""
-        await self._adapter.execute_query("add_role_message", (main_message_id, message_id))
+        await self._adapter.execute_query("add_role_message", (main_message_id, message_id, edit_mode))
 
     async def get_role_message_data(self, message_id:int):
         """Returns the data for a certain """
         rows = await self._adapter.execute_query("get_role_message_data", (message_id, ))
         row = rows[0]
-        return (row["role_id"], row["priority"], row["daily_salary"], row["main_message_id"])
+        return (row["role_id"], row["priority"], row["daily_salary"], row["main_message_id"], row["edit_mode"])
     
     async def set_role_for_role_message(self, message_id:int, role_id:int):
         """Updates the role_id field in the row matching the message id"""
@@ -110,5 +104,26 @@ class Main_DB_Controller(DatabaseController):
         await self._adapter.execute_query("add_dailymoney_role", (guild_id, role_priority, role_id, daily_salary))
 
     async def remove_dailymoney_add_role_message(self, message_id:int):
-        """Deletes the specified row of the dailymoney_add_settings table"""
-        await self._adapter.execute_query("remove_dailymoney_add_settings", (message_id, ))
+        """Deletes the specified row of the dailymoney_settings table"""
+        await self._adapter.execute_query("remove_dailymoney_settings", (message_id, ))
+
+    async def get_dailymoney_edit_mode(self, message_id:int) -> int:
+        """Returns the edit mode for the specified message"""
+        rows = await self._adapter.execute_query("get_dailymoney_edit_mode", (message_id, ))
+        return rows[0]["edit_mode"]
+    
+    async def get_role_ids_for_guild(self, guild_id:int) -> list[int]:
+        """Returns a list of all role_ids presend on a certain guild and specified for dailymoney influencing roles"""
+        rows = await self._adapter.execute_query("get_guild_dailymoney_roles", (guild_id, ))
+        role_ids = []
+        for row in rows:
+            role_ids.append(row["role_id"])
+        return role_ids
+    
+    async def update_settings_from_role(self, role_id:int, message_id:int):
+        """Updates the row containing the settings for the edit role view"""
+        await self._adapter.execute_query("update_settings_from_role", (role_id, message_id))
+
+    async def update_dailymoney_role(self, role_id:int, role_priority:int, daily_salary:int):
+        """Updates the values for the specified dailymoney role"""
+        await self._adapter.execute_query("update_dailymoney_role", (role_priority, daily_salary, role_id))
