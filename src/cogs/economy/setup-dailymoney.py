@@ -446,15 +446,15 @@ class Dailymoney_Setup_Command(Base_Cog):
         Button_Interaction_Handler.unlink_button_callback("setup.dm.help")
 
         # Unlink links for the "add role" and "edit role" view
-        Select_Interaction_Handler.unlink_button_callback("setup.dm.edit.save")
-        Select_Interaction_Handler.unlink_button_callback("setup.dm.edit.disc")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.edit.save")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.edit.disc")
         RoleSelect_Interaction_Handler.unlink_button_callback("setup.dm.edit.role")
         Select_Interaction_Handler.unlink_button_callback("setup.dm.edit.prio")
         Select_Interaction_Handler.unlink_button_callback("setup.dm.edit.sala")
 
         # Establish links for the "delete role" view
         RoleSelect_Interaction_Handler.unlink_button_callback("setup.dm.delete.role")
-        Button_Interaction_Handler.unlink_button_callback("setup.dm.edit.disc")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.delete.disc")
         Button_Interaction_Handler.unlink_button_callback("setup.dm.delete.confirm")
 
         return await super().cog_unload()
