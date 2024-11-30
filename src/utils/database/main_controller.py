@@ -1,7 +1,7 @@
 from utils.database.abc_adapter import DatabaseAdapter
 from utils.database.abc_controller import DatabaseController
 import asyncpg
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class Main_DB_Controller(DatabaseController):
     """Controller used by most """
@@ -45,11 +45,11 @@ class Main_DB_Controller(DatabaseController):
         if return_value:
             last_pickup: datetime | None = return_value[0]["last_pickup"]
             current_time = datetime.now()
-            if (current_time - last_pickup).total_seconds() > 86400:
-                return True
-            else:
-                return False
-        await self.initialize_pickup_ready(user_id)
+            
+            today_timestamp = datetime.combine(current_time.date(), last_pickup.time())
+            if current_time < today_timestamp:
+                today_timestamp -= timedelta(days=1)
+            return current_time.date() > today_timestamp.date()
         return True
     
     async def add_to_user_balance(self, user_id:int, amount:int):
@@ -59,10 +59,6 @@ class Main_DB_Controller(DatabaseController):
     async def reset_pickup_ready(self, user_id:int):
         """Resets the pickup cooldown to the current time"""
         await self._adapter.execute_query("reset_last_pickup", (user_id, ))
-
-    async def initialize_pickup_ready(self, user_id:int):
-        """Inserts the row into the table, the first time a user accesses the data"""
-        await self._adapter.execute_query("init_last_pickup", (user_id, ))
 
     async def get_dailymoney_roles(self, guild_id:int) -> list[tuple]:
         """Querys and returns dailymoney roles for a certain guild"""
@@ -149,4 +145,10 @@ class Main_DB_Controller(DatabaseController):
         """Removes the matching row from the 'dailymoney_settings_delete' table"""
         await self._adapter.execute_query("delete_dailymoney_settings_delete_row", (message_id, ))
 
-    
+    async def get_daily_salary(self, guild_id:int, user_roles_ids:tuple[int]) -> int | None:
+        """Returns the daily salary determined by the role of the user with the highest priority"""
+        rows = await self._adapter.execute_query("get_daily_salary", (guild_id, user_roles_ids))
+        if rows:
+            return rows[0]['daily_salary']
+        return None
+        

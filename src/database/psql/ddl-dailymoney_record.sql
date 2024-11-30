@@ -3,6 +3,6 @@
 
 CREATE TABLE "dailymoney_record" (
 	"user_id" BIGINT NOT NULL,
-	"last_pickup" TIMESTAMP,
+	"last_pickup" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY("user_id")
 )

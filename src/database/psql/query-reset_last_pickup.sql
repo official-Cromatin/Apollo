@@ -1,6 +1,7 @@
--- Version 1.0
--- Updates the 'last_pickup' value to the current time
+-- Version 2.0
+-- Updates the 'last_pickup' value to the current time, or if not found, inserts a new row
 
-UPDATE dailymoney_record
-SET last_pickup = CURRENT_TIMESTAMP
-WHERE user_id = $1
+INSERT INTO dailymoney_record (user_id)
+VALUES ($1)
+ON CONFLICT (user_id)
+DO UPDATE SET last_pickup = CURRENT_TIMESTAMP;
