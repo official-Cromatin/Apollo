@@ -127,3 +127,26 @@ class Main_DB_Controller(DatabaseController):
     async def update_dailymoney_role(self, role_id:int, role_priority:int, daily_salary:int):
         """Updates the values for the specified dailymoney role"""
         await self._adapter.execute_query("update_dailymoney_role", (role_priority, daily_salary, role_id))
+
+    async def create_dailymoney_settings_delete_message(self, main_message_id:int, message_id:int):
+        """Insert row in `dailymoney_settings_delete` table to store information about the 'delete role' view"""
+        await self._adapter.execute_query("add_dailymoney_delete_message", (main_message_id, message_id))
+
+    async def update_dailymoney_settings_delete_role(self, message_id:int, role_id:int):
+        """Update row in `dailymoney_settings_delete` table, to match the RoleSelectMenu interaction"""
+        await self._adapter.execute_query("update_dailymoney_settings_delete_role", (role_id, message_id))
+
+    async def get_dailymoney_settings_delete_row(self, message_id:int) -> int:
+        """Returns the `role_id` and `main_message_id` for the matching row of the `dailymoney_settings_delete` table"""
+        rows = await self._adapter.execute_query("get_dailymoney_settings_delete_row", (message_id, ))
+        return (rows[0]["role_id"], rows[0]["main_message_id"])
+    
+    async def delete_dailymoney_roles_role(self, role_id:int):
+        """Delete matching row in `dailymoney_roles` table to remove matching role from dailymoney roles"""
+        await self._adapter.execute_query("delete_dailymoney_roles_role", (role_id, ))
+
+    async def delete_dailymoney_settings_delete_row(self, message_id:int):
+        """Removes the matching row from the 'dailymoney_settings_delete' table"""
+        await self._adapter.execute_query("delete_dailymoney_settings_delete_row", (message_id, ))
+
+    

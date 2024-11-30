@@ -61,6 +61,20 @@ class Dailymoney_Setup_Command(Base_Cog):
         )
         embed.set_footer(text = "Tip: To add a new role, use the 'Add role' button of the main view")
         return embed
+    
+    def get_delete_role_embed(self, selected_role_id:int = None):
+        """Generates the embed for the 'delete role' view"""
+        embed = discord.Embed(
+            title = "Select a role to be deleted",
+            description = (
+                "### :warning: This CANNOT be undone :warning:\n"
+                "If you accidently delete a role, you need to add it like you did the first time\n\n"
+                "Selected role: `None`" if selected_role_id is None else f"Selected role: <@&{selected_role_id}>"
+            )
+        )
+        embed.set_footer(text = "Tip: To edit the settings of an existing role, use the 'Edit role settings' button of the main view")
+
+        return embed
 
     def get_role_view(self, view_type:Literal["add", "edit"], role_id:int = None, priority:int = None, daily_salary:int = None) -> discord.ui.View:
         """Creates the view for the role setup (add/edit), depending on the given state"""
@@ -188,6 +202,32 @@ class Dailymoney_Setup_Command(Base_Cog):
         message: discord.InteractionMessage = await ctx.original_response()
         await self.__portal.database.create_role_message(ctx.message.id, message.id, 1)
 
+    async def callback_button_delete(self, ctx: discord.Interaction):
+        """Called when a user interacts with the "delete role" button"""
+        embed = self.get_delete_role_embed()
+
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(
+            style = discord.ButtonStyle.red,
+            label = "Discard",
+            custom_id = "setup.dm.delete.disc"
+        ))
+        view.add_item(discord.ui.Button(
+            style = discord.ButtonStyle.red,
+            label = "Confirm deletion",
+            custom_id = "setup.dm.delete.confirm"
+        ))
+        view.add_item(discord.ui.RoleSelect(
+            placeholder = "Select existing role to delete",
+            min_values = 1,
+            max_values = 1,
+            custom_id = "setup.dm.delete.role",
+        ))
+
+        await ctx.response.send_message(embed = embed, view = view)
+        message: discord.InteractionMessage = await ctx.original_response()
+        await self.__portal.database.create_dailymoney_settings_delete_message(ctx.message.id, message.id)
+        
     async def callback_button_help(self, ctx: discord.Interaction):
         """Called when a user interacts with the "help" button of the main view"""
         embed = discord.Embed(
@@ -254,6 +294,31 @@ class Dailymoney_Setup_Command(Base_Cog):
 
         # Update the message
         await self.update_edit_view(ctx)
+
+    async def callback_select_role_delete(self, ctx: discord.Interaction):
+        """Called when a user interacts with the role select menu of the "delete role" view"""
+        selected_role_id = int(ctx.data["values"][0])
+        guild_role_ids:list[int] = await self.__portal.database.get_role_ids_for_guild(ctx.guild_id)
+
+        # Check if role is part of dailymoney roles        
+        if selected_role_id not in guild_role_ids:
+            embed = discord.Embed(
+                description = (
+                    "This role isnt part of the dailymoney roles!\n"
+                    "Select an existing role"
+                ),
+                color = 0xED4337
+            )
+            await ctx.response.send_message(embed = embed, ephemeral = True)
+            return
+        
+        # Update row in database
+        await self.__portal.database.update_dailymoney_settings_delete_role(ctx.message.id, selected_role_id)
+
+        # Update 'delete role' view message
+        embed = self.get_delete_role_embed(selected_role_id)
+        await ctx.message.edit(embed = embed)
+        await ctx.response.defer()
     
     # Callback handlers for buttons of the "add role" and "edit role" views
     async def callback_add_save(self, ctx: discord.Interaction):
@@ -280,9 +345,41 @@ class Dailymoney_Setup_Command(Base_Cog):
         await self.update_main_view(ctx, message_data[3])
         await ctx.response.send_message("Successfully altered the settings", ephemeral = True)
 
+    async def callback_delte_confirm(self, ctx: discord.Interaction):
+        """Called when a user interacts with the "Delete role" button of the "delete role" view"""
+        # Delete selected role from list of dailymoney roles
+        selected_role_id, main_message_id = await self.__portal.database.get_dailymoney_settings_delete_row(ctx.message.id)
+        await self.__portal.database.delete_dailymoney_roles_role(selected_role_id)
+
+        # Check if an role has been selected yet
+        if selected_role_id is None:
+            embed = discord.Embed(
+                description = "No role has been selected yet!",
+                color = 0xED4337)
+            await ctx.response.send_message(embed = embed, ephemeral = True)
+            return
+        
+        # Update main view
+        await self.update_main_view(ctx, main_message_id)
+
+        # Remove row from dailymoney_settings_delete table and delete message
+        await self.__portal.database.delete_dailymoney_settings_delete_row(ctx.message.id)
+        await ctx.message.delete()
+
+        # Send success message
+        embed = discord.Embed(
+            description = f"Dailymoney role <@&{selected_role_id}> was successfully deleted from the dailymoney_roles",
+            color = 0x4BB543)
+        await ctx.response.send_message(embed = embed, ephemeral = True)
+
     async def callback_add_discard(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Discard" button of the "add role" view"""
         await self.__portal.database.remove_dailymoney_add_role_message(ctx.message.id)
+        await ctx.message.delete()
+
+    async def callback_delete_discard(self, ctx: discord.Interaction):
+        """Called when a user interacts with the "Discard" button of the "delete role" view"""
+        await self.__portal.database.delete_dailymoney_settings_delete_row(ctx.message.id)
         await ctx.message.delete()
 
     # Override methods to add additional functionality in order to create links, neccessary to handle interactions
@@ -290,7 +387,7 @@ class Dailymoney_Setup_Command(Base_Cog):
         # Establish links for the "main view"
         Button_Interaction_Handler.link_button_callback("setup.dm.add", self)(self.callback_button_add_role)
         Button_Interaction_Handler.link_button_callback("setup.dm.edit", self)(self.callback_button_edit)
-        # TO-DO: Link for "delete role" view
+        Button_Interaction_Handler.link_button_callback("setup.dm.del", self)(self.callback_button_delete)
         Button_Interaction_Handler.link_button_callback("setup.dm.help", self)(self.callback_button_help)
 
         # Establish links for the "add role" and "edit role" view
@@ -299,13 +396,20 @@ class Dailymoney_Setup_Command(Base_Cog):
         RoleSelect_Interaction_Handler.link_button_callback("setup.dm.edit.role", self)(self.callback_select_role)
         Select_Interaction_Handler.link_button_callback("setup.dm.edit.prio", self)(self.callback_select_priority)
         Select_Interaction_Handler.link_button_callback("setup.dm.edit.sala", self)(self.callback_select_daily_salary)
+
+        # Establish links for the "delete role" view
+        RoleSelect_Interaction_Handler.link_button_callback("setup.dm.delete.role", self)(self.callback_select_role_delete)
+        Button_Interaction_Handler.link_button_callback("setup.dm.delete.disc", self)(self.callback_delete_discard)
+        Button_Interaction_Handler.link_button_callback("setup.dm.delete.confirm", self)(self.callback_delte_confirm)
         
         return await super().cog_load()
 
     async def cog_unload(self):
         # Unlink links for the "main view"
-        for pre in ["setup.dm.add", "setup.dm.edit", "setup.dm.del", "setup.dm.help"]:
-            Button_Interaction_Handler.unlink_button_callback(pre)
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.add")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.edit")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.del")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.help")
 
         # Unlink links for the "add role" and "edit role" view
         Select_Interaction_Handler.unlink_button_callback("setup.dm.edit.save")
@@ -313,6 +417,11 @@ class Dailymoney_Setup_Command(Base_Cog):
         RoleSelect_Interaction_Handler.unlink_button_callback("setup.dm.edit.role")
         Select_Interaction_Handler.unlink_button_callback("setup.dm.edit.prio")
         Select_Interaction_Handler.unlink_button_callback("setup.dm.edit.sala")
+
+        # Establish links for the "delete role" view
+        RoleSelect_Interaction_Handler.unlink_button_callback("setup.dm.delete.role")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.edit.disc")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.delete.confirm")
 
         return await super().cog_unload()
 
