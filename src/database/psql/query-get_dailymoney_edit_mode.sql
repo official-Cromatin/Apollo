@@ -2,5 +2,5 @@
 -- Get the edit mode for the specified view
 
 SELECT edit_mode
-FROM dailymoney_settings
+FROM dailymoney_settings_edit
 WHERE message_id = $1
