@@ -20,14 +20,11 @@ class Dailymoney_Setup_Command(Base_Cog):
     setup_group = app_commands.Group(name = "setup", description = "Contains commands neccessary to setup different modules")
     @setup_group.command(name = "dailymoney", description = "Opens the main setup view for the dailymoney configuration")
     async def setup_dailymoney(self, ctx: discord.Interaction):
-        embed = discord.Embed(title = "Influencing roles for the daily salary on this server", description = await self.get_main_view_description(ctx.guild))
+        embed_description, deleted_role = await self.get_main_view_description(ctx.guild)
+        embed = discord.Embed(title = "Influencing roles for the daily salary on this server", description = embed_description)
         embed.set_footer(text = "Tip: To edit priorities and the amount of income, use the buttons below")
 
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(style = discord.ButtonStyle.blurple, label = "Add role", custom_id = "setup.dm.add"))
-        view.add_item(discord.ui.Button(style = discord.ButtonStyle.blurple, label = "Edit role settings", custom_id = "setup.dm.edit"))
-        view.add_item(discord.ui.Button(style = discord.ButtonStyle.red, label = "Delete role", custom_id = "setup.dm.del"))
-        view.add_item(discord.ui.Button(style = discord.ButtonStyle.red, label = "Help", custom_id = "setup.dm.help"))
+        view = self.get_main_view(deleted_role)
 
         await ctx.response.send_message(embed = embed, view = view)
 
@@ -75,6 +72,16 @@ class Dailymoney_Setup_Command(Base_Cog):
         embed.set_footer(text = "Tip: To edit the settings of an existing role, use the 'Edit role settings' button of the main view")
 
         return embed
+    
+    def get_main_view(self, deleted_role:bool = False) -> discord.ui.View:
+        """Creates the view for the main view"""
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(style = discord.ButtonStyle.blurple, label = "Add role", custom_id = "setup.dm.add"))
+        view.add_item(discord.ui.Button(style = discord.ButtonStyle.blurple, label = "Edit role settings", custom_id = "setup.dm.edit"))
+        view.add_item(discord.ui.Button(style = discord.ButtonStyle.red, label = "Delete role", custom_id = "setup.dm.del"))
+        view.add_item(discord.ui.Button(style = discord.ButtonStyle.red, label = "Help", custom_id = "setup.dm.help"))
+        if deleted_role: view.add_item(discord.ui.Button(style = discord.ButtonStyle.green, label = "Remove deleted roles", custom_id = "setup.dm.cleanup"))
+        return view
 
     def get_role_view(self, view_type:Literal["add", "edit"], role_id:int = None, priority:int = None, daily_salary:int = None) -> discord.ui.View:
         """Creates the view for the role setup (add/edit), depending on the given state"""
@@ -129,16 +136,21 @@ class Dailymoney_Setup_Command(Base_Cog):
     async def get_main_view_description(self, guild:discord.Guild) -> str:
         """Get the description for the main view embed"""
         roles:list = await self.__portal.database.get_dailymoney_roles(guild.id)
+        deleted_roles = False
         if roles:
             # Prepare and sort table data
             table_data = []
             for role_data in roles:
+                role_name = guild.get_role(role_data[1])
+                if role_name is None:
+                    role_name = "[ROLE DELETED]"
+                    deleted_roles = True
                 table_data.append([
                     role_data[0],
-                    guild.get_role(role_data[1]) or "[ROLE DELETED]",
+                    role_name,
                     role_data[2]
                 ])
-            table_data.sort(key=lambda x: x[0], reverse=True)
+            table_data.sort(key=lambda x: (x[0], x[2]), reverse=True)
 
             # Format table with tabulate
             headers = ["Priority", "Name of Role", "Salary"]
@@ -150,9 +162,10 @@ class Dailymoney_Setup_Command(Base_Cog):
             "*Note: To see the manual for this featureset, click the help button below*\n"
             "Current roles and their priorities:\n"
             f"```{table_content}```"
-        )
+            + ("\n**Seems like some roles have been deleted, use the 'Remove deleted roles' button below**" if deleted_roles else "")
+        ), deleted_roles
     
-    async def update_main_view(self, ctx:discord.Interaction, message_id:int):
+    async def update_main_view(self, ctx:discord.Interaction, message_id:int, update_view:bool = False):
         """Updates the main view message"""
         # Get channel
         channel:discord.guild.GuildChannel = self.__bot.get_channel(ctx.channel_id)
@@ -162,10 +175,16 @@ class Dailymoney_Setup_Command(Base_Cog):
                 message:discord.Message = await channel.fetch_message(message_id)
                 # Update the message if the bot was the author of the message
                 if message.author == self.__bot.user:
-                    embed = discord.Embed(title = "Influencing roles for the daily salary on this server", description = await self.get_main_view_description(ctx.guild))
+                    embed_description, _ = await self.get_main_view_description(ctx.guild)
+                    embed = discord.Embed(title = "Influencing roles for the daily salary on this server", description = embed_description)
                     embed.set_footer(text = "Tip: To edit priorities and the amount of income, use the buttons below")
-                    await message.edit(embed = embed)
-                    self._logger.debug(f"Successfully updated main view message {message_id}")
+                    
+                    if update_view:
+                        view = self.get_main_view()
+                        await message.edit(embed = embed, view = view)
+                    else:
+                        await message.edit(embed = embed)
+                        self._logger.debug(f"Successfully updated main view message {message_id}")
                 else:
                     self._logger.error(f"Message {message_id} in {ctx.channel_id} was not created by the bot")
             except discord.NotFound:
@@ -379,6 +398,27 @@ class Dailymoney_Setup_Command(Base_Cog):
         )
         await ctx.response.send_message(embed = embed, ephemeral = True)
 
+    async def callback_cleanup_deleted_roles(self, ctx: discord.Interaction):
+        """Called when a user interacts with the "Remove deleted roles" button of the main view"""
+        # Fetch all dailymoney roles from the database
+        roles:list = await self.__portal.database.get_dailymoney_roles(ctx.guild.id)
+
+        # Check wich roles are deleted
+        deleted_roles_count = 0
+        for role in roles:
+            role_id = role[1]
+            if ctx.guild.get_role(role_id) is None:
+                await self.__portal.database.delete_dailymoney_roles_role(role_id)
+                deleted_roles_count += 1
+
+        # Delete roles from the database
+        embed = discord.Embed(
+            description = f"`{deleted_roles_count}` remaining role has been removed!" if deleted_roles_count == 1 else f"`{deleted_roles_count}` remaining roles have been removed!",
+            color = 0x4BB543
+        )
+        await self.update_main_view(ctx, ctx.message.id, True)
+        await ctx.response.send_message(embed = embed, ephemeral = True)
+
     async def callback_delte_confirm(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Delete role" button of the "delete role" view"""
         # Delete selected role from list of dailymoney roles
@@ -423,6 +463,7 @@ class Dailymoney_Setup_Command(Base_Cog):
         Button_Interaction_Handler.link_button_callback("setup.dm.edit", self)(self.callback_button_edit)
         Button_Interaction_Handler.link_button_callback("setup.dm.del", self)(self.callback_button_delete)
         Button_Interaction_Handler.link_button_callback("setup.dm.help", self)(self.callback_button_help)
+        Button_Interaction_Handler.link_button_callback("setup.dm.cleanup", self)(self.callback_cleanup_deleted_roles)
 
         # Establish links for the "add role" and "edit role" view
         Button_Interaction_Handler.link_button_callback("setup.dm.edit.save", self)(self.callback_add_save)
@@ -444,6 +485,7 @@ class Dailymoney_Setup_Command(Base_Cog):
         Button_Interaction_Handler.unlink_button_callback("setup.dm.edit")
         Button_Interaction_Handler.unlink_button_callback("setup.dm.del")
         Button_Interaction_Handler.unlink_button_callback("setup.dm.help")
+        Button_Interaction_Handler.unlink_button_callback("setup.dm.cleanup")
 
         # Unlink links for the "add role" and "edit role" view
         Button_Interaction_Handler.unlink_button_callback("setup.dm.edit.save")
