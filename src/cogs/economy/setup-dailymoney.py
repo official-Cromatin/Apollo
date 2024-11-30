@@ -259,7 +259,14 @@ class Dailymoney_Setup_Command(Base_Cog):
             case 0: # Add additional role
                 # Check if selected role is part of dailymoney roles on that guild
                 if selected_role_id in guild_role_ids:
-                    await ctx.response.send_message("This role is already selected!\nSelect an role that hasnt been added yet", ephemeral = True)
+                    embed = discord.Embed(
+                        description = (
+                            "This role is already selected!\n"
+                            "Select an role that hasnt been added yet"
+                        ),
+                        color = 0xED4337
+                    )
+                    await ctx.response.send_message(embed = embed, ephemeral = True)
                     return
                 
                 # Update main message
@@ -269,7 +276,14 @@ class Dailymoney_Setup_Command(Base_Cog):
             case 1: # Modify settings of existing role
                 # Check that role is part is dailymoney roles
                 if selected_role_id not in guild_role_ids:
-                    await ctx.response.send_message("This role isnt part of the dailymoney roles!\nSelect an role that has been added yet", ephemeral = True)
+                    embed = discord.Embed(
+                        description = (
+                            "This role isnt part of the dailymoney roles!\n"
+                            "Select an role that has been added yet"
+                        ),
+                        color = 0xED4337
+                    )
+                    await ctx.response.send_message(embed = embed, ephemeral = True)
                     return
                 
                 # Fill in data specified in the dailymoney_role table
@@ -326,24 +340,44 @@ class Dailymoney_Setup_Command(Base_Cog):
         message_data = await self.__portal.database.get_role_message_data(ctx.message.id)
         guild_role_ids:list[int] = await self.__portal.database.get_role_ids_for_guild(ctx.guild_id)
 
+        new_role = False
         match message_data[4]:
             case 0:
                 if message_data[0] in guild_role_ids:
-                    await ctx.response.send_message("The role was already added to the dailymoney roles set.\nSelect another role or discard this view", ephemeral = True)
+                    embed = discord.Embed(
+                        description = (
+                            "The role was already added to the dailymoney roles set.\n"
+                            "Select another role or discard this view"
+                        ),
+                        color = 0xED4337
+                    )
+                    await ctx.response.send_message(embed = embed, ephemeral = True)
                     return
                 await self.__portal.database.add_dailymoney_role(ctx.guild_id, message_data[1], message_data[0], message_data[2])
-
+                new_role = True
 
             case 1:
                 if message_data[0] not in guild_role_ids:
-                    await ctx.response.send_message("The role was already added to the dailymoney roles set.\nSelect another role or discard this view", ephemeral = True)
+                    embed = discord.Embed(
+                        description = (
+                            "The role was already added to the dailymoney roles set.\n"
+                            "Select another role or discard this view"
+                        ),
+                        color = 0xED4337
+                    )
+                    await ctx.response.send_message(embed = embed, ephemeral = True)
                     return
                 await self.__portal.database.update_dailymoney_role(message_data[0], message_data[1], message_data[2])
 
         await self.__portal.database.remove_dailymoney_add_role_message(ctx.message.id)
         await ctx.message.delete()
         await self.update_main_view(ctx, message_data[3])
-        await ctx.response.send_message("Successfully altered the settings", ephemeral = True)
+
+        embed = discord.Embed(
+            description = f"Successfully added the <@&{message_data[0]}> role" if new_role else f"Successfully changed the settings for the <@&{message_data[0]}> role",
+            color = 0x4BB543
+        )
+        await ctx.response.send_message(embed = embed, ephemeral = True)
 
     async def callback_delte_confirm(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Delete role" button of the "delete role" view"""
@@ -368,7 +402,7 @@ class Dailymoney_Setup_Command(Base_Cog):
 
         # Send success message
         embed = discord.Embed(
-            description = f"Dailymoney role <@&{selected_role_id}> was successfully deleted from the dailymoney_roles",
+            description = f"Dailymoney role <@&{selected_role_id}> was successfully deleted from the dailymoney roles",
             color = 0x4BB543)
         await ctx.response.send_message(embed = embed, ephemeral = True)
 
