@@ -1,6 +1,9 @@
--- Version 1.0
+-- Version 2.0
 -- Adds a specified amount to a specified user
 
-UPDATE money
-SET balance = balance + $1
-WHERE user_id = $2
+INSERT INTO money (guild_id, user_id, balance)
+VALUES ($1, $2, $3)
+ON CONFLICT (guild_id, user_id)
+DO UPDATE SET balance = money.balance + $3
+WHERE money.guild_id = $1
+AND money.user_id = $2

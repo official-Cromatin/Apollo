@@ -52,9 +52,13 @@ class Main_DB_Controller(DatabaseController):
             return current_time.date() > today_timestamp.date()
         return True
     
-    async def add_to_user_balance(self, user_id:int, amount:int):
-        """Increments the balance of the specified user by the specified amount"""
-        await self._adapter.execute_query("add_to_balance", (amount, user_id))
+    async def add_to_user_balance(self, guild_id:int, user_id:int, amount:int):
+        """Adds to the balance of the specified user by the specified amount"""
+        await self._adapter.execute_query("add_to_balance", (guild_id, user_id, amount))
+
+    async def substract_from_user_balance(self, guild_id:int, user_id:int, amount:int):
+        """Substracts from the balance of the specified user by the specified amount"""
+        await self._adapter.execute_query("substract_from_balance", (amount, guild_id, user_id))
     
     async def reset_pickup_ready(self, user_id:int):
         """Resets the pickup cooldown to the current time"""

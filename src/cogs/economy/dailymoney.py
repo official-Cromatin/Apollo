@@ -27,7 +27,7 @@ class Dailymoney_Command(Base_Cog):
                 return
 
             await ctx.response.send_message(f"You collected your daily salary of `{daily_salary}` :dollar:")
-            await self.__portal.database.add_to_user_balance(ctx.user.id, daily_salary)
+            await self.__portal.database.add_to_user_balance(ctx.guild_id, ctx.user.id, daily_salary)
             await self.__portal.database.reset_pickup_ready(ctx.user.id)
         else:
             await ctx.response.send_message("You have already collected your daily salary")
