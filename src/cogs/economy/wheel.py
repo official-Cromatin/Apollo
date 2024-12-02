@@ -6,6 +6,7 @@ from cogs.base_cog import Base_Cog
 from utils.portal import Portal
 import random
 import math
+from utils.command_group_registry import get_command_group
 
 class Wheel_Command(Base_Cog):
     def __init__(self, bot):
@@ -13,7 +14,8 @@ class Wheel_Command(Base_Cog):
         self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.wheel"))
 
-    @app_commands.command(name = "wheel", description = "Bets a certain amount of currency on the wheel of fortune")
+    gamble_group = get_command_group("gamble")
+    @gamble_group.command(name = "wheel", description = "Bets a certain amount of currency on the wheel of fortune")
     @app_commands.describe(bet = "Amount you would like to gamble with")
     async def wheel(self, ctx: discord.Interaction, bet:int):
         # Check sufficient user balance
@@ -105,6 +107,13 @@ class Wheel_Command(Base_Cog):
             await self.__portal.database.add_to_user_balance(ctx.guild_id, ctx.user.id, payout - bet)
         elif payout < bet:
             await self.__portal.database.substract_from_user_balance(ctx.guild_id, ctx.user.id, bet - payout)
+
+    async def cog_unload(self):
+        # Remove the command from the group
+        gamble_group = get_command_group("gamble")
+        gamble_group.remove_command("wheel")
+
+        return await super().cog_unload()
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Wheel_Command(bot))

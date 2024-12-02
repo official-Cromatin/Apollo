@@ -37,6 +37,7 @@ import sys
 from utils.interaction_handler.button import Button_Interaction_Handler
 from utils.interaction_handler.role_select import RoleSelect_Interaction_Handler
 from utils.interaction_handler.custom_select import Select_Interaction_Handler
+from utils.command_group_registry import register_command_group
 
 source_path = Path(__file__).resolve()
 base_path = source_path.parents[1]
@@ -65,6 +66,10 @@ class Apollo_Bot(commands.Bot):
         return await self.fetch_user(user_id)
 
     async def setup_hook(self):
+        # Register different command groups
+        register_command_group("setup", "Contains commands neccessary to setup different modules")
+        register_command_group("gamble", "Gamble with your money for the chance to win more")
+
         # Register cogs to handle commands
         for cog_name in ["reload", "economy.currency", "economy.leaderboard", "economy.setup-dailymoney", "economy.dailymoney", "economy.give", "economy.wheel"]:
             await self.load_extension(f"cogs.{cog_name}")

@@ -9,6 +9,7 @@ from utils.interaction_handler.role_select import RoleSelect_Interaction_Handler
 from utils.interaction_handler.custom_select import Select_Interaction_Handler
 from tabulate import tabulate
 from typing import Literal
+from utils.command_group_registry import get_command_group
 
 class Dailymoney_Setup_Command(Base_Cog):
     def __init__(self, bot):
@@ -16,8 +17,8 @@ class Dailymoney_Setup_Command(Base_Cog):
         self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.setup.dailymoney"))
 
-    # Create command group and group command
-    setup_group = app_commands.Group(name = "setup", description = "Contains commands neccessary to setup different modules")
+    # Create group command
+    setup_group = get_command_group("setup")
     @setup_group.command(name = "dailymoney", description = "Opens the main setup view for the dailymoney configuration")
     async def setup_dailymoney(self, ctx: discord.Interaction):
         embed_description, deleted_role = await self.get_main_view_description(ctx.guild)
@@ -498,6 +499,10 @@ class Dailymoney_Setup_Command(Base_Cog):
         RoleSelect_Interaction_Handler.unlink_button_callback("setup.dm.delete.role")
         Button_Interaction_Handler.unlink_button_callback("setup.dm.delete.disc")
         Button_Interaction_Handler.unlink_button_callback("setup.dm.delete.confirm")
+
+        # Remove the command from the group
+        setup_group = get_command_group("setup")
+        setup_group.remove_command("dailymoney")
 
         return await super().cog_unload()
 
