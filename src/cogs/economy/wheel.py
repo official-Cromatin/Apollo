@@ -41,7 +41,7 @@ class Wheel_Command(Base_Cog):
         # Check if bet is greater than 10 dollar
         if bet < 10:
             embed = discord.Embed(
-                description = "You can bet no less than `10` :dollar:",
+                description = "You can bet not less than `10` :dollar:",
                 color = 0xDB3F2F
             )
             await ctx.response.send_message(embed = embed)
