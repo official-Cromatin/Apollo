@@ -32,6 +32,15 @@ class Betroll_Impl:
             await ctx.response.send_message(embed = embed)
             return
         
+        # Check if bet is greater than 10 dollar
+        if bet < 2:
+            embed = discord.Embed(
+                description = "You can bet not less than `2` :dollar:",
+                color = 0xDB3F2F
+            )
+            await ctx.response.send_message(embed = embed)
+            return
+        
         # Randomize the 10 dice
         dice_emojis = ""
         eye_sum = 0
