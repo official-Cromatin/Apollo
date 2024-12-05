@@ -6,6 +6,7 @@ from cogs.base_group_cog import Base_GroupCog
 from cogs.economy.gamble.impls.betflip_impl import Betflip_Impl
 from cogs.economy.gamble.impls.wheel_impl import Wheel_Impl
 from cogs.economy.gamble.impls.betroll_impl import Betroll_Impl
+from cogs.economy.gamble.impls.slot_impl import Slot_Impl
 
 class Gamble_CommandGroup(Base_GroupCog, group_name='gamble'):
     def __init__(self, bot):
@@ -13,6 +14,7 @@ class Gamble_CommandGroup(Base_GroupCog, group_name='gamble'):
         self.__betflip_impl:Betflip_Impl = None
         self.__wheel_impl:Wheel_Impl = None
         self.__betroll_impl:Betroll_Impl = None
+        self.__slot_impl:Slot_Impl = None
         super().__init__(logging.getLogger("cmds.group"))
 
     @app_commands.command(name = "wheel", description = "Bets a certain amount of currency on the wheel of fortune")
@@ -36,20 +38,27 @@ class Gamble_CommandGroup(Base_GroupCog, group_name='gamble'):
     async def betroll(self, ctx: discord.Interaction, bet:int):
         await self.__betroll_impl.on_command(ctx, bet)
 
+    @app_commands.command(name = "slot", description = "Play slots with the bot")
+    @app_commands.describe(bet = "Amount you would like to gamble with")
+    async def betroll(self, ctx: discord.Interaction, bet:int):
+        await self.__slot_impl.on_command(ctx, bet)
+
     async def cog_load(self):
         await self.__bot.load_extension("cogs.economy.gamble.impls.wheel_impl")
         await self.__bot.load_extension("cogs.economy.gamble.impls.betflip_impl")
         await self.__bot.load_extension("cogs.economy.gamble.impls.betroll_impl")
+        await self.__bot.load_extension("cogs.economy.gamble.impls.slot_impl")
         self.__wheel_impl = Wheel_Impl(self.__bot)
         self.__betflip_impl = Betflip_Impl(self.__bot)
         self.__betroll_impl = Betroll_Impl(self.__bot)
-
+        self.__slot_impl = Slot_Impl(self.__bot)
         return await super().cog_load()
 
     async def cog_unload(self):
         await self.__bot.unload_extension("cogs.economy.gamble.impls.wheel_impl")
         await self.__bot.unload_extension("cogs.economy.gamble.impls.betflip_impl")
         await self.__bot.unload_extension("cogs.economy.gamble.impls.betroll_impl")
+        await self.__bot.unload_extension("cogs.economy.gamble.impls.slot_impl")
         return await super().cog_unload()
 
 async def setup(bot: commands.Bot):
