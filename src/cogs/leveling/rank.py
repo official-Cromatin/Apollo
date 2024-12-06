@@ -13,12 +13,22 @@ class Rank_Command(Base_Cog):
         super().__init__(logging.getLogger("cmds.rank"))
 
     @app_commands.command(name = "rank", description = "Shows your current rank in the level system")
-    async def command_name(self, ctx: discord.Interaction):
+    @app_commands.describe(member = "The member you want to see the rank of")
+    async def command_name(self, ctx: discord.Interaction, member:discord.Member = None):
+        if member:
+            user_id = member.id
+            response_pronoun = "His"
+            error_discription = "He does not have any experience on this server yet"
+        else:
+            user_id = ctx.user.id
+            response_pronoun = "Your"
+            error_discription = "You have no experience on this server yet, participate in the chat to get experience"
+
         # Check if the user has any experience
-        result = await self.__portal.database.get_user_experience(ctx.guild_id, ctx.user.id)
+        result = await self.__portal.database.get_user_experience(ctx.guild_id, user_id)
         if result is None:
             embed = discord.Embed(
-                description = "You have no experience on this server yet, participate in the chat to get experience",
+                description = error_discription,
                 color = 0xDB3F2F
             )
             await ctx.response.send_message(embed = embed, ephemeral = True)
@@ -26,7 +36,7 @@ class Rank_Command(Base_Cog):
         user_xp, user_xp_total, user_lvl = result
 
         # Create the embed
-        user_rank = await self.__portal.database.get_user_rank(ctx.guild_id, ctx.user.id)
+        user_rank = await self.__portal.database.get_user_rank(ctx.guild_id, user_id)
         medal = ""
         match user_rank:
             case 0:
@@ -37,7 +47,7 @@ class Rank_Command(Base_Cog):
                 medal = " :third_place:"
 
         embed = discord.Embed(
-            title = "Your rank and experience"
+            title = f"{response_pronoun} rank and experience"
         )
         embed.add_field(
             name = "Current level:",
@@ -52,7 +62,7 @@ class Rank_Command(Base_Cog):
             value = f"`{user_xp_total}`"
         )
         embed.add_field(
-            name = "Your rank",
+            name = f"{response_pronoun} rank",
             value = f"`#{user_rank + 1}`{medal}"
         )
         await ctx.response.send_message(embed = embed)
