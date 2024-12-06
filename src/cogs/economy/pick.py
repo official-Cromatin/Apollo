@@ -34,7 +34,7 @@ class Pick_Command(Base_Cog):
 
         # Create notification for all other mebers
         embed = discord.Embed(
-            description = f"<@{ctx.user.id}> has collected {amount} :dollar:"
+            description = f"<@{ctx.user.id}> has collected `{amount}` :dollar:"
         )
         await ctx.response.send_message(embed = embed)
 
