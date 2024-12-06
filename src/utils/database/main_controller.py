@@ -2,6 +2,7 @@ from utils.database.abc_adapter import DatabaseAdapter
 from utils.database.abc_controller import DatabaseController
 import asyncpg
 from datetime import datetime, timedelta
+from utils.calc_lvl_xp import calculate_current_level_experience
 
 class Main_DB_Controller(DatabaseController):
     """Controller used by most """
@@ -168,4 +169,26 @@ class Main_DB_Controller(DatabaseController):
         row = await self._adapter.execute_query("get_latest_pick_money", (channel_id, ))
         if row:
             return (row[0]["message_id"], row[0]["amount"])
+        return None
+    
+    async def add_to_user_experience(self, guild_id:int, user_id:int, experience:int) -> bool:
+        """Add to the user's experience on a specific guild. 
+        
+        The return value is `true` if the specified user has leveled up"""
+        # Modify and return currenly stats of user
+        row = await self._adapter.execute_query("add_experience", (guild_id, user_id, experience))
+        user_xp = row[0]["xp"]
+        user_lvl = row[0]["level"]
+
+        # If the user has gained all the neccessary experience for the next level, level him up
+        if user_xp >= calculate_current_level_experience(user_lvl):
+            await self._adapter.execute_query("set_level", (user_lvl + 1, guild_id, user_id))
+            return True
+        return False
+
+    async def get_user_experience(self, guild_id:int, user_id:int) -> tuple[int, int] | None:
+        """Returns the level and total experience of a user"""
+        row = await self._adapter.execute_query("get_level", (guild_id, user_id))
+        if row:
+            return (row[0]["xp"], row[0]["level"])
         return None
