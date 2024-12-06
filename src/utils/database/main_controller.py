@@ -192,3 +192,9 @@ class Main_DB_Controller(DatabaseController):
         if row:
             return (row[0]["xp"], row[0]["level"])
         return None
+    
+    async def get_user_rank(self, guild_id:int, user_id:int) -> int | None:
+        row = await self._adapter.execute_query("get_leaderboard_position", (guild_id, user_id))
+        if row:
+            return row[0]["user_rank"]
+        return None
