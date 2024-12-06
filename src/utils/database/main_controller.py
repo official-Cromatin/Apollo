@@ -155,4 +155,17 @@ class Main_DB_Controller(DatabaseController):
         if rows:
             return rows[0]['daily_salary']
         return None
-        
+    
+    async def create_pick_message(self, guild_id:int, channel_id:int, message_id:int, amount:int):
+        """Creates a new entry in the `pick message` table, to link to the pick money message"""
+        await self._adapter.execute_query("create_pick_message", (guild_id, channel_id, message_id, amount))
+
+    async def delete_pick_message(self, message_id:int):
+        await self._adapter.execute_query("delete_pick_message")
+
+    async def get_last_pick_message(self, channel_id:int) -> tuple[int, int] | None:
+        """Returns the message_id aswell as the value of the lastest pick_money message in the specified channel, deletes the row if existant"""
+        row = await self._adapter.execute_query("get_latest_pick_money", (channel_id, ))
+        if row:
+            return (row[0]["message_id"], row[0]["amount"])
+        return None
