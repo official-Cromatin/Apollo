@@ -8,3 +8,4 @@ DO UPDATE SET xp = user_rank.xp + $3
               total_xp = user_rank.total_xp + $3
 WHERE user_rank.guild_id = $1
 AND user_rank.user_id = $2
+RETURNING xp, level
