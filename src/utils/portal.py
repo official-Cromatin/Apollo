@@ -12,3 +12,4 @@ class Portal:
     no_executed_commands:int = 0
     no_succeeded_commands:int = 0
     no_failed_commands:int = 0
+    source_path:str = None

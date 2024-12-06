@@ -71,7 +71,7 @@ class Apollo_Bot(commands.Bot):
         register_command_group("gamble", "Gamble with your money for the chance to win more")
 
         # Register cogs to handle commands
-        for cog_name in ["reload", "economy.currency", "economy.leaderboard", "economy.setup-dailymoney", "economy.dailymoney", "economy.give", "economy.gamble.group", "economy.pick"]:
+        for cog_name in ["reload", "economy.currency", "economy.leaderboard", "economy.setup-dailymoney", "economy.dailymoney", "economy.give", "economy.gamble.group", "economy.pick", "economy.plant"]:
             await self.load_extension(f"cogs.{cog_name}")
         await self.tree.sync()
 
@@ -157,6 +157,7 @@ else:
 portal = Portal.instance()
 portal.bot_config = bot_config
 portal.STARTUP_TIMESTAMP = startup_time
+portal.source_path = source_path.parents[0]
 bot.set_portal(portal)
 
 # Setup handlers to handle states of command execution
