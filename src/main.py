@@ -71,7 +71,7 @@ class Apollo_Bot(commands.Bot):
         register_command_group("gamble", "Gamble with your money for the chance to win more")
 
         # Register cogs to handle commands
-        for cog_name in ["reload", "economy.currency", "economy.leaderboard", "economy.setup-dailymoney", "economy.dailymoney", "economy.give", "economy.gamble.group", "economy.pick", "economy.plant"]:
+        for cog_name in ["reload", "economy.currency", "economy.leaderboard", "economy.setup-dailymoney", "economy.dailymoney", "economy.give", "economy.gamble.group", "economy.pick", "economy.plant", "leveling.rank"]:
             await self.load_extension(f"cogs.{cog_name}")
         await self.tree.sync()
 
