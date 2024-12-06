@@ -3,6 +3,6 @@
 
 UPDATE user_rank
 SET level = $1, 
-    xp = $2
-WHERE guild_id = $3
-AND user_id = $4
+    xp = 0
+WHERE guild_id = $2
+AND user_id = $2
