@@ -16,7 +16,7 @@ class Ranks_Command(Base_Cog):
         self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.ranks"))
 
-    async def get_number_of_rank_pages(self, guild_id:int, page_size:int = 1) -> int:
+    async def get_number_of_rank_pages(self, guild_id:int, page_size:int = 20) -> int:
         """Returns the number of pages that can be displayed for the ranking"""
         return math.ceil(await self.__portal.database.get_number_of_level_users(guild_id) / page_size)
     
