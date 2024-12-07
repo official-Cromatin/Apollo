@@ -198,3 +198,28 @@ class Main_DB_Controller(DatabaseController):
         if row:
             return row[0]["user_rank"]
         return None
+    
+    async def get_number_of_level_users(self, guild_id:int) -> int:
+        """Returns the number of users who have xp on this guild"""
+        row = await self._adapter.execute_query("get_level_users", (guild_id, ))
+        return row[0]["count"]
+    
+    async def create_ranks_view(self, message_id:int, current_page:int):
+        """Inserts a row to store informations about the interactable ranks message"""
+        await self._adapter.execute_query("add_ranks_message", (message_id, current_page))
+
+    async def get_ranks_page(self, message_id:int) -> int:
+        """Returns the currently displayed page for a specific ranks view"""
+        row = await self._adapter.execute_query("get_ranks_page", (message_id, ))
+        return row[0]["current_page"]
+    
+    async def set_ranks_page(self, message_id:int, current_page:int):
+        await self._adapter.execute_query("set_ranks_page", (current_page, message_id))
+    
+    async def get_ranks_page_users(self, guild_id:int, page_number:int, user_per_page:int = 20) -> list[tuple]:
+        """Returns users for the current ranks page"""
+        rows = await self._adapter.execute_query("get_ranks_page_users", (guild_id, user_per_page, page_number * user_per_page))
+        users_info = []
+        for row in rows:
+            users_info.append((row["user_id"], row["level"], row["xp"], row["total_xp"]))
+        return users_info
