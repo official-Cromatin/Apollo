@@ -203,3 +203,7 @@ class Main_DB_Controller(DatabaseController):
         """Returns the number of users who have xp on this guild"""
         row = await self._adapter.execute_query("get_level_users", (guild_id, ))
         return row[0]["user_rank"]
+    
+    async def create_ranks_view(self, message_id:int, current_page:int):
+        """Inserts a row to store informations about the interactable ranks message"""
+        await self._adapter.execute_query("add_ranks_message", (message_id, current_page))
