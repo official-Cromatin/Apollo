@@ -210,5 +210,8 @@ class Main_DB_Controller(DatabaseController):
 
     async def get_ranks_page(self, message_id:int) -> int:
         """Returns the currently displayed page for a specific ranks view"""
-        row = await self._adapter.execute_query("get_ranks_page")
+        row = await self._adapter.execute_query("get_ranks_page", (message_id, ))
         return row[0]["current_page"]
+    
+    async def set_ranks_page(self, message_id:int, current_page:int):
+        await self._adapter.execute_query("set_ranks_page", (current_page, message_id))
