@@ -198,3 +198,8 @@ class Main_DB_Controller(DatabaseController):
         if row:
             return row[0]["user_rank"]
         return None
+    
+    async def get_number_of_level_users(self, guild_id:int) -> int:
+        """Returns the number of users who have xp on this guild"""
+        row = await self._adapter.execute_query("get_level_users", (guild_id, ))
+        return row[0]["user_rank"]
