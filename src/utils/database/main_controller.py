@@ -215,3 +215,11 @@ class Main_DB_Controller(DatabaseController):
     
     async def set_ranks_page(self, message_id:int, current_page:int):
         await self._adapter.execute_query("set_ranks_page", (current_page, message_id))
+    
+    async def get_ranks_page_users(self, guild_id:int, page_number:int, user_per_page:int = 20) -> list[tuple]:
+        """Returns users for the current ranks page"""
+        rows = await self._adapter.execute_query("get_ranks_page_users", (guild_id, user_per_page, page_number * user_per_page))
+        users_info = []
+        for row in rows:
+            users_info.append((row["user_id"], row["level"], row["xp"], row["total_xp"]))
+        return users_info
