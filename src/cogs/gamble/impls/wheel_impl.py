@@ -8,7 +8,7 @@ import math
 class Wheel_Impl:
     def __init__(self, bot:commands.Bot):
         self.__bot = bot
-        self.__logger = logging.getLogger("cmds.gamble.betflip")
+        self.__logger = logging.getLogger("cmds.gamble.wheel")
         self.__portal = Portal.instance()
 
     async def on_command(self, ctx: discord.Interaction, bet:int):
