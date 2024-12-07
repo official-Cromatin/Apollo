@@ -1,26 +1,20 @@
-import discord
-from discord import app_commands
 from discord.ext import commands
+import discord
 import logging
-from cogs.base_cog import Base_Cog
 from utils.portal import Portal
+from tabulate import tabulate
+from typing import Literal
 from utils.interaction_handler.button import Button_Interaction_Handler
 from utils.interaction_handler.role_select import RoleSelect_Interaction_Handler
 from utils.interaction_handler.custom_select import Select_Interaction_Handler
-from tabulate import tabulate
-from typing import Literal
-from utils.command_group_registry import get_command_group
 
-class Dailymoney_Setup_Command(Base_Cog):
-    def __init__(self, bot):
-        self.__bot:discord.Client = bot
+class Dailymoney_Impl:
+    def __init__(self, bot:commands.Bot) -> None:
+        self.__bot = bot
+        self.__logger = logging.getLogger("cmds.setup.dailymoney")
         self.__portal = Portal.instance()
-        super().__init__(logging.getLogger("cmds.setup.dailymoney"))
 
-    # Create group command
-    setup_group = get_command_group("setup")
-    @setup_group.command(name = "dailymoney", description = "Opens the main setup view for the dailymoney configuration")
-    async def setup_dailymoney(self, ctx: discord.Interaction):
+    async def on_command(self, ctx:discord.Interaction):
         embed_description, deleted_role = await self.get_main_view_description(ctx.guild)
         embed = discord.Embed(title = "Influencing roles for the daily salary on this server", description = embed_description)
         embed.set_footer(text = "Tip: To edit priorities and the amount of income, use the buttons below")
@@ -457,8 +451,8 @@ class Dailymoney_Setup_Command(Base_Cog):
         await self.__portal.database.delete_dailymoney_settings_delete_row(ctx.message.id)
         await ctx.message.delete()
 
-    # Override methods to add additional functionality in order to create links, neccessary to handle interactions
-    async def cog_load(self):
+    async def load(self):
+        """Called after the object has been created, to create links in order to handle interactions"""
         # Establish links for the "main view"
         Button_Interaction_Handler.link_button_callback("setup.dm.add", self)(self.callback_button_add_role)
         Button_Interaction_Handler.link_button_callback("setup.dm.edit", self)(self.callback_button_edit)
@@ -477,10 +471,9 @@ class Dailymoney_Setup_Command(Base_Cog):
         RoleSelect_Interaction_Handler.link_button_callback("setup.dm.delete.role", self)(self.callback_select_role_delete)
         Button_Interaction_Handler.link_button_callback("setup.dm.delete.disc", self)(self.callback_delete_discard)
         Button_Interaction_Handler.link_button_callback("setup.dm.delete.confirm", self)(self.callback_delte_confirm)
-        
-        return await super().cog_load()
 
-    async def cog_unload(self):
+    async def unload(self):
+        """Called before the object is deleted, to remove links"""
         # Unlink links for the "main view"
         Button_Interaction_Handler.unlink_button_callback("setup.dm.add")
         Button_Interaction_Handler.unlink_button_callback("setup.dm.edit")
@@ -499,12 +492,10 @@ class Dailymoney_Setup_Command(Base_Cog):
         RoleSelect_Interaction_Handler.unlink_button_callback("setup.dm.delete.role")
         Button_Interaction_Handler.unlink_button_callback("setup.dm.delete.disc")
         Button_Interaction_Handler.unlink_button_callback("setup.dm.delete.confirm")
+    
 
-        # Remove the command from the group
-        setup_group = get_command_group("setup")
-        setup_group.remove_command("dailymoney")
+async def setup(bot):
+    pass
 
-        return await super().cog_unload()
-
-async def setup(bot: commands.Bot):
-    await bot.add_cog(Dailymoney_Setup_Command(bot))
+async def teardown(bot):
+    print('I am being unloaded!')
