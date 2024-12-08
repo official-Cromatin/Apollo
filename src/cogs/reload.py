@@ -2,7 +2,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from cogs.base_cog import Base_Cog
-from cogs.maintenance import Maintenance_Command
 
 import logging
 from datetime import datetime
@@ -39,7 +38,6 @@ class Reload_Command(Base_Cog):
         return choices
 
     @app_commands.command(name = "reload_all", description = "Reloads all cogs")
-    @app_commands.check(Maintenance_Command.handle_check)
     async def reload_all(self, ctx: discord.Interaction):
         if self.__reload_running:
             await ctx.response.send_message("Reload is allready being executed", ephemeral = True)
@@ -79,7 +77,6 @@ class Reload_Command(Base_Cog):
         
 
     @app_commands.command(name = "reload", description = "Reload specific cog")
-    @app_commands.check(Maintenance_Command.handle_check)
     @app_commands.autocomplete(cog_name = autocomplete_cog)
     async def reload(self, ctx: discord.Interaction, cog_name:str):
         if self.__reload_running:
