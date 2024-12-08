@@ -171,20 +171,28 @@ class Main_DB_Controller(DatabaseController):
             return (row[0]["message_id"], row[0]["amount"])
         return None
     
-    async def add_to_user_experience(self, guild_id:int, user_id:int, experience:int) -> bool:
+    async def add_to_user_experience(self, guild_id:int, user_id:int, experience:int) -> tuple[bool, int, int]:
         """Add to the user's experience on a specific guild. 
         
-        The return value is `true` if the specified user has leveled up"""
-        # Modify and return currenly stats of user
-        row = await self._adapter.execute_query("add_experience", (guild_id, user_id, experience))
-        user_xp = row[0]["xp"]
-        user_lvl = row[0]["level"]
+        The return value contains a bool, for when the user has leveled up, aswell as the current user level and experience"""
+        # Get current stats of user
+        row = await self._adapter.execute_query("get_level", (guild_id, user_id))
+        if row:
+            user_xp = row[0]["xp"]
+            user_lvl = row[0]["level"]
+        else:
+            user_xp = 0
+            user_lvl = 0
 
         # If the user has gained all the neccessary experience for the next level, level him up
-        if user_xp >= calculate_current_level_experience(user_lvl):
-            await self._adapter.execute_query("set_level", (user_lvl + 1, guild_id, user_id))
-            return True
-        return False
+        user_xp += experience
+        level_up = False
+        while user_xp >= (level_xp := calculate_current_level_experience(user_lvl)):
+            user_xp -= level_xp
+            user_lvl += 1
+            level_up = True
+        await self._adapter.execute_query("add_experience", (guild_id, user_id, user_xp, user_lvl, experience))
+        return (level_up, user_lvl, user_xp)
 
     async def get_user_experience(self, guild_id:int, user_id:int) -> tuple[int, int] | None:
         """Returns the level and total experience of a user"""
