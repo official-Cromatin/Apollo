@@ -231,3 +231,33 @@ class Main_DB_Controller(DatabaseController):
         for row in rows:
             users_info.append((row["user_id"], row["level"], row["xp"], row["total_xp"]))
         return users_info
+    
+    async def get_channel_functionality(self, channel_id:int) -> tuple[bool]:
+        """Returns the enabled functionality for a specific channel
+        
+        - [0]: Experience enabled? Default: No"""
+        row = await self._adapter.execute_query("get_channel_functionality", (channel_id, ))
+        if row:
+            return (row[0]["experience"], )
+        return None
+    
+    async def get_experience_settings(self, channel_id:int) -> tuple[float] | None:
+        row = await self._adapter.execute_query("get_experience_settings", (channel_id, ))
+        if row:
+            return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"])
+        return None
+
+    async def user_for_experience_applicable(self, guild_id:int, user_id:int, minimum_time_delta:float = 60.0) -> bool:
+        """Check whater or not the user is applicable to recieve experience"""
+        row = await self._adapter.execute_query("get_last_xp_pickup", (user_id, guild_id))
+        if row:
+            last_pickup:datetime = row[0]["last_xp_pickup"]
+            if last_pickup == None or datetime.now().timestamp() - last_pickup.timestamp() >= minimum_time_delta:
+                return True
+            return False
+        return True
+    
+    async def reset_user_experience_gain(self, guild_id:int, user_id:int,):
+        """Resets the last_xp_pickup timer to the current time"""
+        await self._adapter.execute_query("reset_user_xp_gain_timer", (guild_id, user_id))
+        
