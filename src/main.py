@@ -46,6 +46,7 @@ class Apollo_Bot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.messages = True
+        intents.message_content = True
         intents.members = True
         super().__init__(command_prefix=None, help_command=None, intents=intents)
 
@@ -67,7 +68,7 @@ class Apollo_Bot(commands.Bot):
     async def setup_hook(self):
         # Register cogs to handle commands
         for cog_name in ["reload", "economy.currency", "economy.leaderboard", "economy.dailymoney", "economy.give", "gamble.group", "economy.pick", "economy.plant", 
-                         "leveling.rank", "leveling.ranks", "setup.group", "leveling.turntoxp"]:
+                         "leveling.rank", "leveling.ranks", "setup.group", "leveling.turntoxp", "event.message.group"]:
             await self.load_extension(f"cogs.{cog_name}")
         await self.tree.sync()
 
@@ -136,6 +137,9 @@ class Apollo_Bot(commands.Bot):
 
     async def on_ready(self):
         app_logger.info(f"Successfully logged in (after {get_elapsed_time_smal(datetime.now().timestamp() - startup_time)}) as {self.user}")
+
+    async def on_message(self, message):
+        pass
 
 # Create
 bot = Apollo_Bot()
