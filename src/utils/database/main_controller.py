@@ -241,3 +241,9 @@ class Main_DB_Controller(DatabaseController):
             return (row[0]["experience"], )
         return None
     
+    async def get_experience_settings(self, channel_id:int) -> tuple[float] | None:
+        row = await self._adapter.execute_query("get_experience_settings", (channel_id, ))
+        if row:
+            return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"])
+        return None
+
