@@ -5,5 +5,6 @@ CREATE TABLE "event_message" (
     "guild_id" BIGINT,
     "channel_id" BIGINT,
     "experience" BOOLEAN DEFAULT FALSE,
+    "pick_money" BOOLEAN DEFAULT FALSE,
     PRIMARY KEY ("channel_id")
 )
