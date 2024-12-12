@@ -231,3 +231,13 @@ class Main_DB_Controller(DatabaseController):
         for row in rows:
             users_info.append((row["user_id"], row["level"], row["xp"], row["total_xp"]))
         return users_info
+    
+    async def get_channel_functionality(self, channel_id:int) -> tuple[bool]:
+        """Returns the enabled functionality for a specific channel
+        
+        - [0]: Experience enabled? Default: No"""
+        row = await self._adapter.execute_query("get_channel_functionality", (channel_id, ))
+        if row:
+            return (row[0]["experience"], )
+        return None
+    
