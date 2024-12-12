@@ -45,13 +45,17 @@ class Reload_Command(Base_Cog):
             self.__reload_running = True
             task_start = datetime.now().timestamp()
             cog_names = list(self.__bot.extensions.keys())
-            self._logger.debug(f"Reloading all {len(cog_names)} cogs ...")
+            stepped_over = 0
+            self._logger.debug(f"Reloading all {len(cog_names)} cogs / extensions ...")
             try: 
                 embed_cog_stats = "Reloaded the following cogs:\n"
                 for extension_name in cog_names:
-                    start_reload = datetime.now().timestamp()
-                    await self.__bot.reload_extension(extension_name)
-                    embed_cog_stats += f"- {extension_name.removeprefix('cogs.').capitalize()} (`{get_elapsed_time_milliseconds(datetime.now().timestamp() - start_reload)}`)\n"
+                    if "impls" in extension_name:
+                        stepped_over += 1
+                    else:
+                        start_reload = datetime.now().timestamp()
+                        await self.__bot.reload_extension(extension_name)
+                        embed_cog_stats += f"- {extension_name.removeprefix('cogs.').capitalize()} (`{get_elapsed_time_milliseconds(datetime.now().timestamp() - start_reload)}`)\n"
 
             except Exception as error:
                 embed_cog_stats += f"- {extension_name.removeprefix('cogs.').capitalize()} <--"
@@ -70,7 +74,7 @@ class Reload_Command(Base_Cog):
                     description = f"{embed_cog_stats}Total time spend: `{elapsed_time}`",
                     color = 0x4BB543)
 
-                self._logger.info(f"Cogs successfully reloaded after {elapsed_time}")
+                self._logger.info(f"Cogs successfully reloaded after {elapsed_time} (Ignored )")
             finally:
                 await ctx.response.send_message(embed = embed, ephemeral = True)
                 self.__reload_running = False
