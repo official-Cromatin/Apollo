@@ -238,7 +238,7 @@ class Main_DB_Controller(DatabaseController):
         - [0]: Experience enabled? Default: No"""
         row = await self._adapter.execute_query("get_channel_functionality", (channel_id, ))
         if row:
-            return (row[0]["experience"], )
+            return (row[0]["experience"], row[0]["pick_money"])
         return None
     
     async def get_experience_settings(self, channel_id:int) -> tuple[float] | None:
