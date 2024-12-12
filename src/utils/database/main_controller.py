@@ -247,3 +247,17 @@ class Main_DB_Controller(DatabaseController):
             return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"])
         return None
 
+    async def user_for_experience_applicable(self, guild_id:int, user_id:int, minimum_time_delta:float = 60.0) -> bool:
+        """Check whater or not the user is applicable to recieve experience"""
+        row = await self._adapter.execute_query("get_last_xp_pickup", (user_id, guild_id))
+        if row:
+            last_pickup:datetime = row[0]["last_xp_pickup"]
+            if last_pickup == None or datetime.now().timestamp() - last_pickup.timestamp() >= minimum_time_delta:
+                return True
+            return False
+        return True
+    
+    async def reset_user_experience_gain(self, guild_id:int, user_id:int,):
+        """Resets the last_xp_pickup timer to the current time"""
+        await self._adapter.execute_query("reset_user_xp_gain_timer", (guild_id, user_id))
+        
