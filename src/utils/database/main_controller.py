@@ -261,3 +261,9 @@ class Main_DB_Controller(DatabaseController):
         """Resets the last_xp_pickup timer to the current time"""
         await self._adapter.execute_query("reset_user_xp_gain_timer", (guild_id, user_id))
         
+    async def get_pick_money_settings(self, channel_id:int) -> tuple[int]:
+        """Returns pick money settings of the specified channel"""
+        row = await self._adapter.execute_query("get_pick_money_settings", (channel_id, ))
+        if row:
+            return (row[0]["min_amount"], row[0]["max_amount"], row[0]["probability"])
+        return None
