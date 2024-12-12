@@ -32,7 +32,8 @@ class Message_Events(Base_Cog):
             functionality = await self.__portal.database.get_channel_functionality(msg.channel.id)
         
             if functionality:
-                pass
+                if functionality[0]: # Experience
+                    await self.__experience.handle(msg)
 
                 self._logger.debug(f"Handled {sum(functionality)} functionalities in {get_elapsed_time_milliseconds(datetime.now().timestamp() - begin)} for {msg.channel.name} ({msg.channel.id}) send by {msg.author.name} ({msg.author.id})")
             else:
