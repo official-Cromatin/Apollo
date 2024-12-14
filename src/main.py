@@ -68,7 +68,7 @@ class Apollo_Bot(commands.Bot):
     async def setup_hook(self):
         # Register cogs to handle commands
         for cog_name in ["reload", "economy.currency", "economy.leaderboard", "economy.dailymoney", "economy.give", "gamble.group", "economy.pick", "economy.plant", 
-                         "leveling.rank", "leveling.ranks", "setup.group", "leveling.turntoxp", "event.message.group"]:
+                         "leveling.rank", "leveling.ranks", "setup.group", "leveling.turntoxp", "event.message.group", "leveling.group"]:
             await self.load_extension(f"cogs.{cog_name}")
         await self.tree.sync()
 
