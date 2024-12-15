@@ -267,3 +267,13 @@ class Main_DB_Controller(DatabaseController):
         if row:
             return (row[0]["min_amount"], row[0]["max_amount"], row[0]["probability"])
         return None
+    
+    async def create_experience_settings_message(self, original_message_id:int, message_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
+        """Creates a row in the "channel_experience_settings" table to store the data about the configuration message"""
+        await self._adapter.execute_query("create_experience_settings_message", (message_id, original_message_id, default_multiplier, minimum_threshold, maximum_experience))
+
+    async def get_experience_settings_message(self, message_id:int) -> tuple[float, int, int]:
+        row = await self._adapter.execute_query("get_experience_settings_message", (message_id, ))
+        if row:
+            return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"])
+        return None
