@@ -2,6 +2,7 @@ from discord.ext import commands
 import discord
 import logging
 from utils.portal import Portal
+from utils.interaction_handler.button import Button_Interaction_Handler
 
 class Configure_Impl:
     def __init__(self, bot:commands.Bot):
@@ -23,6 +24,15 @@ class Configure_Impl:
         )
         embed.set_footer(text = "Use the '/leveling configure' command to edit the values")
         return embed
+    
+    def get_view(self, default_multiplier:float, minimum_threshold:int, maximum_experience:int) -> discord.ui.View:
+        """Returns the view, depending on the provided values, the "Save" Button will be disabled until all values are not None"""
+        save_disabled = any(value is None for value in [default_multiplier, minimum_threshold, maximum_experience])
+        
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label = "Save", custom_id = "lvls.conf.save", style = discord.ButtonStyle.green, disabled = save_disabled))
+        view.add_item(discord.ui.Button(label = "Discard", custom_id = "lvls.conf.disc", style = discord.ButtonStyle.red))
+        return view
     
     @staticmethod
     def return_biggest(*values:int | None, default:int = None) -> int | None:
@@ -126,7 +136,10 @@ class Configure_Impl:
         await self.__portal.database.set_experience_settings_message(ctx.channel_id, default_multiplier_db, minimum_threshold_db, maximum_experience_db)
 
         # Edit the original message
-        await self.edit_message(ctx.channel, message_id, embed = self.get_embed(default_multiplier_db, minimum_threshold_db, maximum_experience_db))
+        await self.edit_message(
+            ctx.channel, message_id, 
+            embed = self.get_embed(default_multiplier_db, minimum_threshold_db, maximum_experience_db),
+            view = self.get_view(default_multiplier_db, minimum_threshold_db, maximum_experience_db))
 
     async def create_message(self, ctx:discord.Interaction):
         # Load settings for channel (if existing)
@@ -137,17 +150,27 @@ class Configure_Impl:
             default_multiplier, minimum_threshold, maximum_experience = channel_settings
 
         # Create the embed
-        await ctx.response.send_message(embed = self.get_embed(default_multiplier, minimum_threshold, maximum_experience))
-
+        await ctx.response.send_message(
+            embed = self.get_embed(default_multiplier, minimum_threshold, maximum_experience),
+            view = self.get_view(default_multiplier, minimum_threshold, maximum_experience))
+        
         # Create the row in the database to store message settings
         message = await ctx.original_response()
-        await self.__portal.database.create_experience_settings_message(ctx.message.id, message.id, default_multiplier, minimum_threshold, maximum_experience)
+        await self.__portal.database.create_experience_settings_message(ctx.channel_id, ctx.message.id, message.id, default_multiplier, minimum_threshold, maximum_experience)
     
+    async def callback_discard(self, ctx:discord.Interaction):
+        """Called when a user interacts with the discard button of the message"""
+        # Remove the row in the database
+        await self.__portal.database.delete_experience_settings_message(ctx.message.id)
+
+        # Delete the message
+        await ctx.message.delete()
+
     async def on_load(self):
-        pass
+        Button_Interaction_Handler.link_button_callback("lvls.conf.disc", self)(self.callback_discard)
 
     async def on_unload(self):
-        pass
+        Button_Interaction_Handler.unlink_button_callback("lvls.conf.disc")
 
 
 async def setup(bot):

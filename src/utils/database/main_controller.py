@@ -282,3 +282,8 @@ class Main_DB_Controller(DatabaseController):
     async def set_experience_settings_message(self, channel_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
         """Updates the data for the matching configuration message"""
         await self._adapter.execute_query("set_experience_settings_message", (default_multiplier, minimum_threshold, maximum_experience, channel_id))
+
+    async def delete_experience_settings_message(self, message_id:int):
+        """"Deletes the data for the matching configuration message"""
+        await self._adapter.execute_query("delete_experience_settings_message", (message_id, )) 
+        
