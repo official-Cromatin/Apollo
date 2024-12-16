@@ -158,6 +158,30 @@ class Configure_Impl:
         message = await ctx.original_response()
         await self.__portal.database.create_experience_settings_message(ctx.channel_id, ctx.message.id, message.id, default_multiplier, minimum_threshold, maximum_experience)
     
+    async def callback_save(self, ctx:discord.Interaction):
+        """Called when a user interacts with the save button of the message"""
+        # Load the associated values with the message
+        channel_settings:tuple = await self.__portal.database.get_experience_settings_message(ctx.channel_id)
+        if channel_settings is None:
+            embed = discord.Embed(
+                title = "Error while saving",
+                description = (
+                    "Unfortunately there was a problem with saving.\n"
+                    "Please discard the message and open the configuration view again"
+                ),
+                color = 0xDB3F2F
+            )
+            ctx.response.send_message(embed = embed, ephemeral = True)
+            return
+        else:
+            default_multiplier, minimum_threshold, maximum_experience, _, _ = channel_settings
+
+        # Save the new values to the database
+        await self.__portal.database.set_experience_settings(ctx.guild_id, ctx.channel_id, default_multiplier, minimum_threshold, maximum_experience)
+        
+        # Cleanup
+        await self.callback_discard(ctx)
+
     async def callback_discard(self, ctx:discord.Interaction):
         """Called when a user interacts with the discard button of the message"""
         # Remove the row in the database
@@ -167,9 +191,11 @@ class Configure_Impl:
         await ctx.message.delete()
 
     async def on_load(self):
+        Button_Interaction_Handler.link_button_callback("lvls.conf.save", self)(self.callback_save)
         Button_Interaction_Handler.link_button_callback("lvls.conf.disc", self)(self.callback_discard)
 
     async def on_unload(self):
+        Button_Interaction_Handler.unlink_button_callback("lvls.conf.save")
         Button_Interaction_Handler.unlink_button_callback("lvls.conf.disc")
 
 
