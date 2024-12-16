@@ -278,3 +278,7 @@ class Main_DB_Controller(DatabaseController):
         if row:
             return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"], row[0]["message_id"], row[0]["original_message_id"])
         return None
+    
+    async def set_experience_settings_message(self, channel_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
+        """Updates the data for the matching configuration message"""
+        await self._adapter.execute_query("set_experience_settings_message", (default_multiplier, minimum_threshold, maximum_experience, channel_id))
