@@ -163,13 +163,16 @@ class Configure_Impl:
             ctx.response.send_message(embed = embed, ephemeral = True)
             return
         else:
-            default_multiplier, minimum_threshold, maximum_experience, _, _ = channel_settings
+            default_multiplier, minimum_threshold, maximum_experience, _, original_message_id = channel_settings
 
         # Save the new values to the database
         await self.__portal.database.set_experience_settings(ctx.guild_id, ctx.channel_id, default_multiplier, minimum_threshold, maximum_experience)
         
         # Cleanup
         await self.callback_discard(ctx)
+
+        # Update main message
+        await Shared_Functions.update_main_message(ctx.channel, original_message_id, ctx.channel_id, default_multiplier, minimum_threshold, maximum_experience)
 
     async def callback_discard(self, ctx:discord.Interaction):
         """Called when a user interacts with the discard button of the message"""
