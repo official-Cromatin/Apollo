@@ -18,6 +18,13 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
     async def setup(self, ctx:discord.Interaction):
         await self.__setup.on_command(ctx)
 
+    @app_commands.command(name = "configure", description = "Changes the settings for the last configuration message")
+    @app_commands.describe(
+        default_multiplier = "Multiplier, being multiplied by the length of the message",
+        minimum_threshold = "Threshold above which the user is rewarded",
+        maximum_experience = "Limit for the maximum amount of receivable experience")
+    async def configure(self, ctx:discord.Integration, default_multiplier:float = None, minimum_threshold:int = None, maximum_experience:int = None):
+        await self.__configure.on_command(ctx, default_multiplier, minimum_threshold, maximum_experience)
 
     async def cog_load(self):
         await self.__bot.load_extension("cogs.leveling.impls.configure_impl")
