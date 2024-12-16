@@ -27,6 +27,8 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
         await self.__configure.on_command(ctx, default_multiplier, minimum_threshold, maximum_experience)
 
     async def cog_load(self):
+        await self.__bot.load_extension("cogs.leveling.impls.shared_functions")
+
         await self.__bot.load_extension("cogs.leveling.impls.configure_impl")
         self.__configure = Configure_Impl(self.__bot)
         await self.__configure.on_load()
@@ -43,6 +45,8 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
 
         await self.__configure.on_unload()
         await self.__bot.unload_extension("cogs.leveling.impls.configure_impl")
+
+        await self.__bot.unload_extension("cogs.leveling.impls.shared_functions")
 
         return await super().cog_unload()
 

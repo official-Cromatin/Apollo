@@ -3,6 +3,7 @@ import discord
 import logging
 from utils.portal import Portal
 from utils.interaction_handler.button import Button_Interaction_Handler
+from cogs.leveling.impls.shared_functions import Shared_Functions
 
 class Configure_Impl:
     def __init__(self, bot:commands.Bot):
@@ -45,18 +46,6 @@ class Configure_Impl:
         """Returns the smallest value from the provided ones"""
         filtered_values = [v for v in values if v is not None]
         return min(filtered_values, default = default)
-    
-    async def edit_message(self, channel:discord.TextChannel, message_id:int, embed:discord.Embed = ..., view:discord.ui.View = ...) -> discord.Message:
-        """Edits the embed and view of the message in the provided channel, returns the edited message"""
-        message = await channel.fetch_message(message_id)
-
-        # Check which values are provided
-        kwargs = {}
-        if embed is not ...:
-            kwargs['embed'] = embed
-        if view is not ...:
-            kwargs['view'] = view
-        return await message.edit(**kwargs)
 
     async def on_command(self, ctx:discord.Interaction, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
         # Check if there is a configuration presend
@@ -136,10 +125,10 @@ class Configure_Impl:
         await self.__portal.database.set_experience_settings_message(ctx.channel_id, default_multiplier_db, minimum_threshold_db, maximum_experience_db)
 
         # Edit the original message
-        await self.edit_message(
+        await Shared_Functions.edit_message(
             ctx.channel, message_id, 
-            embed = self.get_embed(default_multiplier_db, minimum_threshold_db, maximum_experience_db),
-            view = self.get_view(default_multiplier_db, minimum_threshold_db, maximum_experience_db))
+            embed = Shared_Functions.get_configure_embed(default_multiplier_db, minimum_threshold_db, maximum_experience_db),
+            view = Shared_Functions.get_configurate_view(default_multiplier_db, minimum_threshold_db, maximum_experience_db))
 
     async def create_message(self, ctx:discord.Interaction):
         # Load settings for channel (if existing)
@@ -151,8 +140,8 @@ class Configure_Impl:
 
         # Create the embed
         await ctx.response.send_message(
-            embed = self.get_embed(default_multiplier, minimum_threshold, maximum_experience),
-            view = self.get_view(default_multiplier, minimum_threshold, maximum_experience))
+            embed = Shared_Functions.get_configure_embed(default_multiplier, minimum_threshold, maximum_experience),
+            view = Shared_Functions.get_configurate_view(default_multiplier, minimum_threshold, maximum_experience))
         
         # Create the row in the database to store message settings
         message = await ctx.original_response()
