@@ -49,8 +49,24 @@ class Copy_Impl:
         await self.__portal.database.create_experience_settings_message(ctx.channel_id, ctx.message.id, message.id, None, None, None)
 
     async def channel_name_autocomplete(self, ctx:discord.Interaction, current:str) -> list[app_commands.Choice]:
+        """Autocompletes the channel name based on the configured experience channels"""
+        # Request the id of all channels having leveling enabled
+        channel_ids = await self.__portal.database.get_leveling_channels(ctx.guild_id)
+        choices = []
+        counter = 0
+        for channel_id in channel_ids:
+            # Compare the name of each channel to the current user input
+            channel = ctx.guild.get_channel(channel_id)
+            if channel.name.lower().startswith(current.lower()):
+                choices.append(app_commands.Choice(name = channel.name, value = str(channel_id)))
+                counter += 1
 
-    async def on_command(self, ctx:discord.Interaction):
+            # Limit the amount of options to 25
+            if counter == 25:
+                break
+        return choices
+
+    async def on_command(self, ctx:discord.Interaction, channel:str):
         pass
 
     async def on_load(self):

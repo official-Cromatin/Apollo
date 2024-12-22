@@ -286,4 +286,14 @@ class Main_DB_Controller(DatabaseController):
     async def delete_experience_settings_message(self, message_id:int):
         """"Deletes the data for the matching configuration message"""
         await self._adapter.execute_query("delete_experience_settings_message", (message_id, )) 
-        
+
+    async def get_leveling_channels(self, guild_id:int) -> None | list[int]:
+        """Returns the id of all channels having leveling enabled on the specified guild"""
+        rows = await self._adapter.execute_query("get_leveling_channels", (guild_id, ))
+        if rows:
+            channel_ids = []
+            for row in rows:
+                channel_ids.append(row["channel_id"])
+            return channel_ids
+        return None
+

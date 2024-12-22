@@ -28,6 +28,11 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
     async def configure(self, ctx:discord.Integration, default_multiplier:float = None, minimum_threshold:int = None, maximum_experience:int = None):
         await self.__configure.on_command(ctx, default_multiplier, minimum_threshold, maximum_experience)
 
+    @app_commands.command(name = "copy", description = "Copies the configuration from another channel")
+    @app_commands.describe(channel = "Name of the channel from which you want to copy the configuration")
+    async def copy(self, ctx:discord.Interaction, channel:str):
+        await self.__copy.on_command(ctx, channel)
+
     async def cog_load(self):
         await self.__bot.load_extension("cogs.leveling.impls.shared_functions")
 
@@ -38,6 +43,8 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
         await self.__bot.load_extension("cogs.leveling.impls.copy_impl")
         self.__copy = Copy_Impl(self.__bot)
         await self.__copy.on_load()
+        copy_command = self.copy
+        copy_command.autocomplete("channel")(self.__copy.channel_name_autocomplete)
 
         await self.__bot.load_extension("cogs.leveling.impls.setup_impl")
         self.__setup = Setup_Impl(self.__bot, self.__configure, self.__copy)
