@@ -35,6 +35,29 @@ class Setup_Impl:
 
     async def callback_edit(self, ctx:discord.Interaction):
         """Called when a user interacts with the "Edit configuration" button of the main view"""
+        # Check if another settings message is presend in the current channel
+        check_result = await self.__portal.database.check_existing_settings_message(ctx.channel_id)
+        if check_result:
+            try:
+                message = await ctx.channel.fetch_message(check_result)
+            except discord.NotFound:
+                # Message does no longer exist and the entry in the database can be safely deleted
+                await self.__portal.database.delete_experience_settings_message(check_result)
+                self.__logger.debug(f"The configuration message in channel {ctx.channel_id} no longer existed, the entry in the db was therefore removed")
+            else:
+                # Another configuration message is still present
+                embed = discord.Embed(
+                    title = "Another message exists",
+                    description = (
+                            f"No additional configuration message can be created while [this configuration]({message.jump_url}) message exists\n"
+                            "Save the changes or discard them"
+                        ),
+                    color = 0xDB3F2F
+                )
+                
+                await ctx.response.send_message(embed = embed, ephemeral = True)
+                return
+
         # Since there is no other configuration message present, the requested view can be created
         settings = await self.__portal.database.get_experience_settings(ctx.channel_id)
         if settings is None:
