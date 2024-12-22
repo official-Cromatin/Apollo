@@ -127,25 +127,8 @@ class Configure_Impl:
         # Edit the original message
         await Shared_Functions.edit_message(
             ctx.channel, message_id, 
-            embed = Shared_Functions.get_configure_embed(default_multiplier_db, minimum_threshold_db, maximum_experience_db),
-            view = Shared_Functions.get_configurate_view(default_multiplier_db, minimum_threshold_db, maximum_experience_db))
-
-    async def create_message(self, ctx:discord.Interaction):
-        # Load settings for channel (if existing)
-        channel_settings:tuple = await self.__portal.database.get_experience_settings(ctx.channel_id)
-        if channel_settings is None:
-            default_multiplier = minimum_threshold = maximum_experience = None
-        else:
-            default_multiplier, minimum_threshold, maximum_experience = channel_settings
-
-        # Create the embed
-        await ctx.response.send_message(
-            embed = Shared_Functions.get_configure_embed(default_multiplier, minimum_threshold, maximum_experience),
-            view = Shared_Functions.get_configurate_view(default_multiplier, minimum_threshold, maximum_experience))
-        
-        # Create the row in the database to store message settings
-        message = await ctx.original_response()
-        await self.__portal.database.create_experience_settings_message(ctx.channel_id, ctx.message.id, message.id, default_multiplier, minimum_threshold, maximum_experience)
+            embed = Shared_Functions.get_edit_embed(default_multiplier_db, minimum_threshold_db, maximum_experience_db),
+            view = Shared_Functions.get_edit_view(default_multiplier_db, minimum_threshold_db, maximum_experience_db))
     
     async def callback_save(self, ctx:discord.Interaction):
         """Called when a user interacts with the save button of the message"""

@@ -33,21 +33,29 @@ class Setup_Impl:
         view = Shared_Functions.get_main_view()
         await ctx.response.send_message(embed = embed, view = view)
 
-    async def callback_conf(self, ctx:discord.Interaction):
-        """Called when a user interacts with the "Configure channel" button of the main view"""
-        await self.__configure.create_message(ctx)
+    async def callback_edit(self, ctx:discord.Interaction):
+        """Called when a user interacts with the "Edit configuration" button of the main view"""
+        # Since there is no other configuration message present, the requested view can be created
+        settings = await self.__portal.database.get_experience_settings(ctx.channel_id)
+        if settings is None:
+            default_multiplier = minimum_threshold = maximum_experience = None
+        else:
+            default_multiplier, minimum_threshold, maximum_experience = settings
 
-    async def callback_copy(self, ctx:discord.Interaction):
-        """Called when a user interacts with the "Copy settings from channel" button of the main view"""
-        await self.__copy.create_message(ctx)
+        await ctx.response.send_message(
+            embed = Shared_Functions.get_edit_embed(default_multiplier, minimum_threshold, maximum_experience),
+            view = Shared_Functions.get_edit_view(default_multiplier, minimum_threshold, maximum_experience)
+        )
+
+        # Create the row in the database to store message settings
+        message = await ctx.original_response()
+        await self.__portal.database.create_experience_settings_message(ctx.channel_id, ctx.message.id, message.id, default_multiplier, minimum_threshold, maximum_experience)
 
     async def on_load(self):
-        Button_Interaction_Handler.link_button_callback("lvls.main.conf", self)(self.callback_conf)
-        Button_Interaction_Handler.link_button_callback("lvls.main.copy", self)(self.callback_copy)
+        Button_Interaction_Handler.link_button_callback("lvls.main.edit", self)(self.callback_edit)
 
     async def on_unload(self):
-        Button_Interaction_Handler.unlink_button_callback("lvls.main.conf")
-        Button_Interaction_Handler.unlink_button_callback("lvls.main.copy")
+        Button_Interaction_Handler.unlink_button_callback("lvls.main.edit")
 
 
 async def setup(bot):

@@ -38,17 +38,6 @@ class Copy_Impl:
         view.add_item(discord.ui.Button(label = "Discard", custom_id = "lvls.conf.disc", style = discord.ButtonStyle.red))
         return view
 
-    async def create_message(self, ctx:discord.Interaction):
-        # Since there is no other configuration message present, a new one can be created
-        await ctx.response.send_message(
-            embed = self.get_embed(None, None, None, None),
-            view = self.get_view(None, None, None)
-        )
-
-        # Create the row in the database to store message settings
-        message = await ctx.original_response()
-        await self.__portal.database.create_experience_settings_message(ctx.channel_id, ctx.message.id, message.id, None, None, None)
-
     async def channel_name_autocomplete(self, ctx:discord.Interaction, current:str) -> list[app_commands.Choice]:
         """Autocompletes the channel name based on the configured experience channels"""
         # Request the id of all channels having leveling enabled

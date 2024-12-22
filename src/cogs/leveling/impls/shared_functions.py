@@ -32,8 +32,7 @@ class Shared_Functions:
     @staticmethod
     def get_main_view() -> discord.ui.View:
         view = discord.ui.View()
-        view.add_item(discord.ui.Button(label = "Configure channel", style = discord.ButtonStyle.blurple, custom_id = "lvls.main.conf"))
-        view.add_item(discord.ui.Button(label = "Copy settings from channel", style = discord.ButtonStyle.blurple, custom_id = "lvls.main.copy"))
+        view.add_item(discord.ui.Button(label = "Edit configuration", style = discord.ButtonStyle.blurple, custom_id = "lvls.main.edit"))        
         return view
     
     @staticmethod
@@ -45,23 +44,25 @@ class Shared_Functions:
         
     # Methods used to generate components for the "configure" view (configure_impl)
     @staticmethod
-    def get_configure_embed(default_multiplier:float, minimum_threshold:int, maximum_experience:int) -> discord.Embed:
+    def get_edit_embed(default_multiplier:float, minimum_threshold:int, maximum_experience:int) -> discord.Embed:
         """Creates and returns the embed, embedding the provided values"""
         embed = discord.Embed(
-            title = "Editing the configuration",
+            title = "Edit the configuration",
             description = (
                 "**__Configuration for this channel:__**\n"
                 f"- Multiplier, being multiplied by the length of the message: `{default_multiplier}`\n"
                 f"- Threshold above which the user is rewarded: `{minimum_threshold}`\n"
                 f"- Limit for the maximum amount of receivable experience: `{maximum_experience}`\n"
-                "-# Important: The amount of gained experience is calculated by multiplying the message length by the multiplier"
+                "-# Important: The amount of gained experience is calculated by multiplying the message length by the multiplier\n\n"
+                "**__How to edit the values__**\n"
+                "1. Change specific values with the `/leveling configure` command\n"
+                "2. Copy values from another, already configured channel, via the `/leveling copy` command"
             )
         )
-        embed.set_footer(text = "Use the '/leveling configure' command to edit the values")
         return embed
     
     @staticmethod
-    def get_configurate_view(default_multiplier:float, minimum_threshold:int, maximum_experience:int) -> discord.ui.View:
+    def get_edit_view(default_multiplier:float, minimum_threshold:int, maximum_experience:int) -> discord.ui.View:
         """Returns the view, depending on the provided values, the "Save" Button will be disabled until all values are not None"""
         save_disabled = any(value is None for value in [default_multiplier, minimum_threshold, maximum_experience])
         
@@ -72,8 +73,8 @@ class Shared_Functions:
     
     @staticmethod
     async def update_edit_message(channel:discord.TextChannel, message_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
-        embed = __class__.get_configure_embed(default_multiplier, minimum_threshold, maximum_experience)
-        view = __class__.get_configurate_view(default_multiplier, minimum_threshold, maximum_experience)
+        embed = __class__.get_edit_embed(default_multiplier, minimum_threshold, maximum_experience)
+        view = __class__.get_edit_view(default_multiplier, minimum_threshold, maximum_experience)
         await __class__.edit_message(channel, message_id, embed, view)
     
 
