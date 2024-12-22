@@ -25,7 +25,7 @@ class Setup_Impl:
                 title = f"Configuration for obtaining experience in <#{ctx.channel_id}> channel",
                 description = "```No configuration found```"
             )
-            await ctx.response.send_message(embed = embed, view = self.get_view())
+            await ctx.response.send_message(embed = embed, view = Shared_Functions.get_main_view())
             return
         default_multiplier, minimum_threshold, maximum_experience = channel_settings
 

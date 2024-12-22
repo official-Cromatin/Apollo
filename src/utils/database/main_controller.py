@@ -246,6 +246,10 @@ class Main_DB_Controller(DatabaseController):
         if row:
             return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"])
         return None
+    
+    async def set_experience_settings(self, guild_id:int, channel_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
+        """Updates the settings for this channel, regarding the gain of experience"""
+        await self._adapter.execute_query("set_channel_experience_settings", (guild_id, channel_id, default_multiplier, minimum_threshold, maximum_experience))
 
     async def user_for_experience_applicable(self, guild_id:int, user_id:int, minimum_time_delta:float = 60.0) -> bool:
         """Check whater or not the user is applicable to recieve experience"""
