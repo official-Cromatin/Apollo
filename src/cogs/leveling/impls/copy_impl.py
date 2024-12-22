@@ -3,6 +3,7 @@ import discord
 from discord import app_commands
 import logging
 from utils.portal import Portal
+from cogs.leveling.impls.shared_functions import Shared_Functions
 
 class Copy_Impl:
     def __init__(self, bot:commands.Bot):
@@ -67,7 +68,58 @@ class Copy_Impl:
         return choices
 
     async def on_command(self, ctx:discord.Interaction, channel:str):
-        pass
+        # Check if the input is numeric
+        if not channel.isnumeric():
+            embed = discord.Embed(
+                title = "Incorrect input",
+                description = "The input must be a selection from the available options, given by the command",
+                color = 0xDB3F2F
+            )
+            await ctx.response.send_message(embed = embed, ephemeral = True)
+            return
+        
+        # Check if the given channel_id matches to any present channels
+        channel_ids = await self.__portal.database.get_leveling_channels(ctx.guild_id)
+        selected_channel_id = int(channel)
+        if not selected_channel_id in channel_ids:
+            embed = discord.Embed(
+                title = "Non existing channel",
+                description = (
+                    "The specified channel does not exist on this Guild.\n"
+                    "In addition, the entry of arbitrary numbers is not permitted"
+                ),
+                color = 0xDB3F2F
+            )
+            await ctx.response.send_message(embed = embed, ephemeral = True)
+            return
+        
+        # Check if there is a configuration message present in the current channel
+        channel_settings = await self.__portal.database.get_experience_settings_message(ctx.channel_id)
+        if channel_settings is None:
+            embed = discord.Embed(
+                description = (
+                    "This command only works in the same channel in which a configuration message exists\n"
+                    "Use the '/leveling setup' command to open the overview and then click on the 'Configure channel' button"
+                ),
+                color = 0xDB3F2F
+            )
+            await ctx.response.send_message(embed = embed, ephemeral = True)
+            return
+        
+        # Copy the settings from the provided one and apply them to this channel
+        default_multiplier, minimum_threshold, maximum_experience = await self.__portal.database.get_experience_settings(selected_channel_id)
+        await self.__portal.database.set_experience_settings_message(ctx.channel_id, default_multiplier, minimum_threshold, maximum_experience)
+
+        # Update the configuration message
+        await Shared_Functions.update_edit_message(ctx.channel, channel_settings[3], default_multiplier, minimum_threshold, maximum_experience)
+
+        # Confirm the action
+        embed = discord.Embed(
+            title = "Settings loaded successfully",
+            description = f"The settings of the <#{selected_channel_id}> channel have been loaded successfully, don't forget to save them :)",
+            color = 0x4BB543
+        )
+        await ctx.response.send_message(embed = embed, ephemeral = True)
 
     async def on_load(self):
         pass

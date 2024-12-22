@@ -5,7 +5,7 @@ class Shared_Functions:
     @staticmethod
     async def edit_message(channel:discord.TextChannel | int, message_id:int, embed:discord.Embed = ..., view:discord.ui.View = ...) -> discord.Message:
         """Edits the embed and view of the message in the provided channel, returns the edited message"""
-        message = await channel.fetch_message(message_id)
+        message = channel.get_partial_message(message_id)
 
         # Check which values are provided
         kwargs = {}
@@ -69,6 +69,12 @@ class Shared_Functions:
         view.add_item(discord.ui.Button(label = "Save", custom_id = "lvls.conf.save", style = discord.ButtonStyle.green, disabled = save_disabled))
         view.add_item(discord.ui.Button(label = "Discard", custom_id = "lvls.conf.disc", style = discord.ButtonStyle.red))
         return view
+    
+    @staticmethod
+    async def update_edit_message(channel:discord.TextChannel, message_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
+        embed = __class__.get_configure_embed(default_multiplier, minimum_threshold, maximum_experience)
+        view = __class__.get_configurate_view(default_multiplier, minimum_threshold, maximum_experience)
+        await __class__.edit_message(channel, message_id, embed, view)
     
 
 async def setup(bot):
