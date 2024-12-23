@@ -241,11 +241,16 @@ class Main_DB_Controller(DatabaseController):
             return (row[0]["experience"], row[0]["pick_money"])
         return None
     
-    async def get_experience_settings(self, channel_id:int) -> tuple[float] | None:
+    async def get_experience_settings(self, channel_id:int) -> tuple[float, int, int] | None:
+        """Returns the settings for this channel, regarding the gain of experience"""
         row = await self._adapter.execute_query("get_experience_settings", (channel_id, ))
         if row:
             return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"])
         return None
+    
+    async def set_experience_settings(self, guild_id:int, channel_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
+        """Updates the settings for this channel, regarding the gain of experience"""
+        await self._adapter.execute_query("set_channel_experience_settings", (guild_id, channel_id, default_multiplier, minimum_threshold, maximum_experience))
 
     async def user_for_experience_applicable(self, guild_id:int, user_id:int, minimum_time_delta:float = 60.0) -> bool:
         """Check whater or not the user is applicable to recieve experience"""
@@ -267,3 +272,40 @@ class Main_DB_Controller(DatabaseController):
         if row:
             return (row[0]["min_amount"], row[0]["max_amount"], row[0]["probability"])
         return None
+    
+    async def create_experience_settings_message(self, channel_id:int, original_message_id:int, message_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
+        """Creates a row in the "channel_experience_settings" table to store the data about the configuration message"""
+        await self._adapter.execute_query("create_experience_settings_message", (channel_id, message_id, original_message_id, default_multiplier, minimum_threshold, maximum_experience))
+
+    async def get_experience_settings_message(self, channel_id:int) -> tuple[float, int, int, int, int]:
+        """Returns the data for the matching configuration message"""
+        row = await self._adapter.execute_query("get_experience_settings_message", (channel_id, ))
+        if row:
+            return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"], row[0]["message_id"], row[0]["original_message_id"])
+        return None
+    
+    async def set_experience_settings_message(self, channel_id:int, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
+        """Updates the data for the matching configuration message"""
+        await self._adapter.execute_query("set_experience_settings_message", (default_multiplier, minimum_threshold, maximum_experience, channel_id))
+
+    async def delete_experience_settings_message(self, message_id:int):
+        """"Deletes the data for the matching configuration message"""
+        await self._adapter.execute_query("delete_experience_settings_message", (message_id, )) 
+
+    async def get_leveling_channels(self, guild_id:int) -> None | list[int]:
+        """Returns the id of all channels having leveling enabled on the specified guild"""
+        rows = await self._adapter.execute_query("get_leveling_channels", (guild_id, ))
+        if rows:
+            channel_ids = []
+            for row in rows:
+                channel_ids.append(row["channel_id"])
+            return channel_ids
+        return None
+
+    async def check_existing_settings_message(self, channel_id:int) -> None | int:
+        """Checks if a settings message is present in the given channel, returns none or the id of that message"""
+        row = await self._adapter.execute_query("check_existing_settings_message", (channel_id, ))
+        if row:
+            return row[0]["message_id"]
+        return None
+    
