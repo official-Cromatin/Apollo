@@ -6,12 +6,14 @@ from cogs.base_group_cog import Base_GroupCog
 from cogs.leveling.impls.setup_impl import Setup_Impl
 from cogs.leveling.impls.configure_impl import Configure_Impl
 from cogs.leveling.impls.copy_impl import Copy_Impl
+from cogs.leveling.impls.info_impl import Info_Impl
 
 class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
     def __init__(self, bot:commands.Bot):
         self.__setup:Setup_Impl = None
         self.__configure:Configure_Impl = None
         self.__copy:Copy_Impl = None
+        self.__info:Info_Impl = None
 
         self.__bot = bot
         super().__init__(logging.getLogger("cmds.leveling"))
@@ -33,6 +35,11 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
     async def copy(self, ctx:discord.Interaction, channel:str):
         await self.__copy.on_command(ctx, channel)
 
+    @app_commands.command(name = "info", description = "Displays information for this channel, without being able to make changes")
+    @app_commands.describe(channel = "Name of the channel of wich you want to display the configuration")
+    async def info(self, ctx:discord.Interaction, channel:discord.TextChannel = None):
+        await self.__info.on_command(ctx, channel)
+
     async def cog_load(self):
         await self.__bot.load_extension("cogs.leveling.impls.shared_functions")
 
@@ -46,6 +53,9 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
         copy_command = self.copy
         copy_command.autocomplete("channel")(self.__copy.channel_name_autocomplete)
 
+        await self.__bot.load_extension("cogs.leveling.impls.info_impl")
+        self.__info = Info_Impl(self.__bot)
+
         await self.__bot.load_extension("cogs.leveling.impls.setup_impl")
         self.__setup = Setup_Impl(self.__bot, self.__configure, self.__copy)
         await self.__setup.on_load()
@@ -55,6 +65,8 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
     async def cog_unload(self):
         await self.__setup.on_unload()
         await self.__bot.unload_extension("cogs.leveling.impls.setup_impl")
+
+        await self.__bot.unload_extension("cogs.leveling.impls.info_impl")
 
         await self.__copy.on_unload()
         await self.__bot.unload_extension("cogs.leveling.impls.copy_impl")
