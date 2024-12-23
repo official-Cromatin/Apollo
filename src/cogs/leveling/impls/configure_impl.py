@@ -10,30 +10,6 @@ class Configure_Impl:
         self.__bot = bot
         self.__logger = logging.getLogger("cmds.leveling.configure")
         self.__portal = Portal.instance()
-
-    def get_embed(self, default_multiplier:float, minimum_threshold:int, maximum_experience:int) -> discord.Embed:
-        """Creates and returns the embed, embedding the provided values"""
-        embed = discord.Embed(
-            title = "Editing the configuration",
-            description = (
-                "**__Configuration for this channel:__**\n"
-                f"- Multiplier, being multiplied by the length of the message: `{default_multiplier}`\n"
-                f"- Threshold above which the user is rewarded: `{minimum_threshold}`\n"
-                f"- Limit for the maximum amount of receivable experience: `{maximum_experience}`\n"
-                "-# Important: The amount of gained experience is calculated by multiplying the message length by the multiplier"
-            )
-        )
-        embed.set_footer(text = "Use the '/leveling configure' command to edit the values")
-        return embed
-    
-    def get_view(self, default_multiplier:float, minimum_threshold:int, maximum_experience:int) -> discord.ui.View:
-        """Returns the view, depending on the provided values, the "Save" Button will be disabled until all values are not None"""
-        save_disabled = any(value is None for value in [default_multiplier, minimum_threshold, maximum_experience])
-        
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(label = "Save", custom_id = "lvls.conf.save", style = discord.ButtonStyle.green, disabled = save_disabled))
-        view.add_item(discord.ui.Button(label = "Discard", custom_id = "lvls.conf.disc", style = discord.ButtonStyle.red))
-        return view
     
     @staticmethod
     def return_biggest(*values:int | None, default:int = None) -> int | None:

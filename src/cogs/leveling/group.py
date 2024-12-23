@@ -18,7 +18,7 @@ class Leveling_CommandGroup(Base_GroupCog, group_name = "leveling"):
         self.__bot = bot
         super().__init__(logging.getLogger("cmds.leveling"))
 
-    @app_commands.command(name = "setup")
+    @app_commands.command(name = "setup", description = "Opens the setup wizard for this channel")
     async def setup(self, ctx:discord.Interaction):
         await self.__setup.on_command(ctx)
 

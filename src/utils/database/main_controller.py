@@ -241,7 +241,8 @@ class Main_DB_Controller(DatabaseController):
             return (row[0]["experience"], row[0]["pick_money"])
         return None
     
-    async def get_experience_settings(self, channel_id:int) -> tuple[float] | None:
+    async def get_experience_settings(self, channel_id:int) -> tuple[float, int, int] | None:
+        """Returns the settings for this channel, regarding the gain of experience"""
         row = await self._adapter.execute_query("get_experience_settings", (channel_id, ))
         if row:
             return (row[0]["default_multiplier"], row[0]["minimum_threshold"], row[0]["maximum_experience"])
@@ -276,7 +277,7 @@ class Main_DB_Controller(DatabaseController):
         """Creates a row in the "channel_experience_settings" table to store the data about the configuration message"""
         await self._adapter.execute_query("create_experience_settings_message", (channel_id, message_id, original_message_id, default_multiplier, minimum_threshold, maximum_experience))
 
-    async def get_experience_settings_message(self, channel_id:int) -> tuple[float, int, int]:
+    async def get_experience_settings_message(self, channel_id:int) -> tuple[float, int, int, int, int]:
         """Returns the data for the matching configuration message"""
         row = await self._adapter.execute_query("get_experience_settings_message", (channel_id, ))
         if row:
@@ -301,3 +302,10 @@ class Main_DB_Controller(DatabaseController):
             return channel_ids
         return None
 
+    async def check_existing_settings_message(self, channel_id:int) -> None | int:
+        """Checks if a settings message is present in the given channel, returns none or the id of that message"""
+        row = await self._adapter.execute_query("check_existing_settings_message", (channel_id, ))
+        if row:
+            return row[0]["message_id"]
+        return None
+    

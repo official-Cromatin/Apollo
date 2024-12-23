@@ -45,8 +45,12 @@ class Copy_Impl:
         choices = []
         counter = 0
         for channel_id in channel_ids:
-            # Compare the name of each channel to the current user input
+            # Check if the channel exists, if not, continue with the next
             channel = ctx.guild.get_channel(channel_id)
+            if channel is None:
+                continue
+
+            # Compare the name of each channel to the current user input
             if channel.name.lower().startswith(current.lower()):
                 choices.append(app_commands.Choice(name = channel.name, value = str(channel_id)))
                 counter += 1
