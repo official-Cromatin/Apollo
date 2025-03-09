@@ -29,6 +29,9 @@ class User_Currency(Base_Model):
         self.__last_claimed = last_claimed
         self.__currency = currency
 
+    def __str__(self):
+        return f"User_Currency({self.arguments()}, {self.data()})"
+
     @classmethod
     async def create(cls, database_connection:Connection, user_id:int, guild_id:int, currency:int) -> "User_Currency":
         """Creates a new model with the specified data.
