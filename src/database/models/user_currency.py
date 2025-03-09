@@ -79,7 +79,7 @@ class User_Currency(Base_Model):
             return NotFound("User_Currency", {"user_id": user_id, "guild_id": guild_id})
         return User_Currency(database_connection, row["user_id"], row["guild_id"], row["last_claimed"], row["balance"])
     
-    async def save(self):
+    async def save(self) -> "User_Currency":
         if self._deleted:
             raise NoLongerExists("User_Currency", self.arguments(), self.data())
 
@@ -87,14 +87,16 @@ class User_Currency(Base_Model):
             await self._connection.execute(self.SAVE, self.__user_id, self.__guild_id, self.__last_claimed, self.__currency)
         except UniqueViolationError:
             raise AlreadyExists("User_Currency", self.arguments())
+        return self
 
-    async def delete(self):
+    async def delete(self) -> "User_Currency":
         if self._deleted:
             raise NoLongerExists("User_Currency", self.arguments(), self.data())
 
         if await self._connection.fetchval(self.DELETE, self.__user_id, self.__guild_id) is None:
             raise NotFound("User_Currency", self.arguments())
         self._deleted = True
+        return self
 
     def is_sufficient(self, amount:int) -> bool:
         """Checks if the user has enough currency to deduct the specified amount
