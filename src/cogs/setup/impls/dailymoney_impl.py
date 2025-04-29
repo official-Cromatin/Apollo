@@ -1,7 +1,7 @@
 from discord.ext import commands
 import discord
 import logging
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 from tabulate import tabulate
 from typing import Literal
 from utils.interaction_handler.button import Button_Interaction_Handler
@@ -12,7 +12,6 @@ class Dailymoney_Impl:
     def __init__(self, bot:commands.Bot) -> None:
         self.__bot = bot
         self.__logger = logging.getLogger("cmds.setup.dailymoney")
-        self.__portal = Portal.instance()
 
     async def on_command(self, ctx:discord.Interaction):
         embed_description, deleted_role = await self.get_main_view_description(ctx.guild)
@@ -130,7 +129,8 @@ class Dailymoney_Impl:
 
     async def get_main_view_description(self, guild:discord.Guild) -> str:
         """Get the description for the main view embed"""
-        roles:list = await self.__portal.database.get_dailymoney_roles(guild.id)
+        database:Main_DB_Controller = self._bot.database
+        roles:list = await database.get_dailymoney_roles(guild.id)
         deleted_roles = False
         if roles:
             # Prepare and sort table data
@@ -189,7 +189,8 @@ class Dailymoney_Impl:
 
     async def update_edit_view(self, ctx:discord.Interaction):
         """Updates the edit role view message. Involves creating the embed aswell as the view"""
-        message_data = await self.__portal.database.get_role_message_data(ctx.message.id)
+        database:Main_DB_Controller = ctx.client.database
+        message_data = await database.get_role_message_data(ctx.message.id)
         view_type = "add" if message_data[4] == 0 else "edit"
 
         await ctx.response.edit_message(
@@ -200,24 +201,27 @@ class Dailymoney_Impl:
     # Callback handlers used to create additional views
     async def callback_button_add_role(self, ctx: discord.Interaction):
         """Called when a user interacts with the "add role" button of the main view"""
+        database:Main_DB_Controller = ctx.client.database
         embed = self.get_role_embed("Add additional role")
         view = self.get_role_view("add")
 
         await ctx.response.send_message(embed = embed, view = view)
         message: discord.InteractionMessage = await ctx.original_response()
-        await self.__portal.database.create_role_message(ctx.message.id, message.id, 0)
+        await database.create_role_message(ctx.message.id, message.id, 0)
 
     async def callback_button_edit(self, ctx: discord.Interaction):
         """Called when a user interacts with the "edit role settings" button of the main view"""
+        database:Main_DB_Controller = ctx.client.database
         embed = self.get_role_embed("Edit existing role")
         view = self.get_role_view("edit")
 
         await ctx.response.send_message(embed = embed, view = view)
         message: discord.InteractionMessage = await ctx.original_response()
-        await self.__portal.database.create_role_message(ctx.message.id, message.id, 1)
+        await database.create_role_message(ctx.message.id, message.id, 1)
 
     async def callback_button_delete(self, ctx: discord.Interaction):
         """Called when a user interacts with the "delete role" button"""
+        database:Main_DB_Controller = ctx.client.database
         embed = self.get_delete_role_embed()
 
         view = discord.ui.View()
@@ -240,7 +244,7 @@ class Dailymoney_Impl:
 
         await ctx.response.send_message(embed = embed, view = view)
         message: discord.InteractionMessage = await ctx.original_response()
-        await self.__portal.database.create_dailymoney_settings_delete_message(ctx.message.id, message.id)
+        await database.create_dailymoney_settings_delete_message(ctx.message.id, message.id)
         
     async def callback_button_help(self, ctx: discord.Interaction):
         """Called when a user interacts with the "help" button of the main view"""
@@ -267,9 +271,10 @@ class Dailymoney_Impl:
     # Callback handlers for select menus
     async def callback_select_role(self, ctx: discord.Interaction):
         """Called when a user interacts with the role selector of the "add role" view"""
+        database:Main_DB_Controller = ctx.client.database
         selected_role_id = int(ctx.data["values"][0])
-        guild_role_ids:list[int] = await self.__portal.database.get_role_ids_for_guild(ctx.guild_id)
-        match await self.__portal.database.get_dailymoney_edit_mode(ctx.message.id):
+        guild_role_ids:list[int] = await database.get_role_ids_for_guild(ctx.guild_id)
+        match await database.get_dailymoney_edit_mode(ctx.message.id):
             case 0: # Add additional role
                 # Check if selected role is part of dailymoney roles on that guild
                 if selected_role_id in guild_role_ids:
@@ -284,7 +289,7 @@ class Dailymoney_Impl:
                     return
                 
                 # Update main message
-                await self.__portal.database.set_role_for_role_message(ctx.message.id, selected_role_id)
+                await database.set_role_for_role_message(ctx.message.id, selected_role_id)
                 await self.update_edit_view(ctx)
                 
             case 1: # Modify settings of existing role
@@ -301,32 +306,35 @@ class Dailymoney_Impl:
                     return
                 
                 # Fill in data specified in the dailymoney_role table
-                await self.__portal.database.update_settings_from_role(selected_role_id, ctx.message.id)
+                await database.update_settings_from_role(selected_role_id, ctx.message.id)
 
                 # Update main message
-                await self.__portal.database.set_role_for_role_message(ctx.message.id, selected_role_id)
+                await database.set_role_for_role_message(ctx.message.id, selected_role_id)
                 await self.update_edit_view(ctx)
 
     async def callback_select_priority(self, ctx: discord.Interaction):
         """Called when a user interacts with the priority selector of the "add_role" view"""
+        database:Main_DB_Controller = ctx.client.database
         selected_priority = int(ctx.data["values"][0])
-        await self.__portal.database.set_priority_for_role_message(ctx.message.id, selected_priority)
+        await database.set_priority_for_role_message(ctx.message.id, selected_priority)
 
         # Update the message
         await self.update_edit_view(ctx)
     
     async def callback_select_daily_salary(self, ctx: discord.Interaction):
         """Called when a user interacts with the daily income selector of the "add role" view"""
+        database:Main_DB_Controller = ctx.client.database
         daily_income = int(ctx.data["values"][0])
-        await self.__portal.database.set_salary_for_role_message(ctx.message.id, daily_income)
+        await database.set_salary_for_role_message(ctx.message.id, daily_income)
 
         # Update the message
         await self.update_edit_view(ctx)
 
     async def callback_select_role_delete(self, ctx: discord.Interaction):
         """Called when a user interacts with the role select menu of the "delete role" view"""
+        database:Main_DB_Controller = ctx.client.database
         selected_role_id = int(ctx.data["values"][0])
-        guild_role_ids:list[int] = await self.__portal.database.get_role_ids_for_guild(ctx.guild_id)
+        guild_role_ids:list[int] = await database.get_role_ids_for_guild(ctx.guild_id)
 
         # Check if role is part of dailymoney roles        
         if selected_role_id not in guild_role_ids:
@@ -341,7 +349,7 @@ class Dailymoney_Impl:
             return
         
         # Update row in database
-        await self.__portal.database.update_dailymoney_settings_delete_role(ctx.message.id, selected_role_id)
+        await database.update_dailymoney_settings_delete_role(ctx.message.id, selected_role_id)
 
         # Update 'delete role' view message
         embed = self.get_delete_role_embed(selected_role_id)
@@ -351,8 +359,9 @@ class Dailymoney_Impl:
     # Callback handlers for buttons of the "add role" and "edit role" views
     async def callback_add_save(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Save" button of the "add role" view"""
-        message_data = await self.__portal.database.get_role_message_data(ctx.message.id)
-        guild_role_ids:list[int] = await self.__portal.database.get_role_ids_for_guild(ctx.guild_id)
+        database:Main_DB_Controller = ctx.client.database
+        message_data = await database.get_role_message_data(ctx.message.id)
+        guild_role_ids:list[int] = await database.get_role_ids_for_guild(ctx.guild_id)
 
         new_role = False
         match message_data[4]:
@@ -367,7 +376,7 @@ class Dailymoney_Impl:
                     )
                     await ctx.response.send_message(embed = embed, ephemeral = True)
                     return
-                await self.__portal.database.add_dailymoney_role(ctx.guild_id, message_data[1], message_data[0], message_data[2])
+                await database.add_dailymoney_role(ctx.guild_id, message_data[1], message_data[0], message_data[2])
                 new_role = True
 
             case 1:
@@ -381,9 +390,9 @@ class Dailymoney_Impl:
                     )
                     await ctx.response.send_message(embed = embed, ephemeral = True)
                     return
-                await self.__portal.database.update_dailymoney_role(message_data[0], message_data[1], message_data[2])
+                await database.update_dailymoney_role(message_data[0], message_data[1], message_data[2])
 
-        await self.__portal.database.remove_dailymoney_add_role_message(ctx.message.id)
+        await database.remove_dailymoney_add_role_message(ctx.message.id)
         await ctx.message.delete()
         await self.update_main_view(ctx, message_data[3])
 
@@ -395,15 +404,16 @@ class Dailymoney_Impl:
 
     async def callback_cleanup_deleted_roles(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Remove deleted roles" button of the main view"""
+        database:Main_DB_Controller = ctx.client.database
         # Fetch all dailymoney roles from the database
-        roles:list = await self.__portal.database.get_dailymoney_roles(ctx.guild.id)
+        roles:list = await database.get_dailymoney_roles(ctx.guild.id)
 
         # Check wich roles are deleted
         deleted_roles_count = 0
         for role in roles:
             role_id = role[1]
             if ctx.guild.get_role(role_id) is None:
-                await self.__portal.database.delete_dailymoney_roles_role(role_id)
+                await database.delete_dailymoney_roles_role(role_id)
                 deleted_roles_count += 1
 
         # Delete roles from the database
@@ -416,9 +426,10 @@ class Dailymoney_Impl:
 
     async def callback_delte_confirm(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Delete role" button of the "delete role" view"""
+        database:Main_DB_Controller = ctx.client.database
         # Delete selected role from list of dailymoney roles
-        selected_role_id, main_message_id = await self.__portal.database.get_dailymoney_settings_delete_row(ctx.message.id)
-        await self.__portal.database.delete_dailymoney_roles_role(selected_role_id)
+        selected_role_id, main_message_id = await database.get_dailymoney_settings_delete_row(ctx.message.id)
+        await database.delete_dailymoney_roles_role(selected_role_id)
 
         # Check if an role has been selected yet
         if selected_role_id is None:
@@ -432,7 +443,7 @@ class Dailymoney_Impl:
         await self.update_main_view(ctx, main_message_id)
 
         # Remove row from dailymoney_settings_delete table and delete message
-        await self.__portal.database.delete_dailymoney_settings_delete_row(ctx.message.id)
+        await database.delete_dailymoney_settings_delete_row(ctx.message.id)
         await ctx.message.delete()
 
         # Send success message
@@ -443,12 +454,14 @@ class Dailymoney_Impl:
 
     async def callback_add_discard(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Discard" button of the "add role" view"""
-        await self.__portal.database.remove_dailymoney_add_role_message(ctx.message.id)
+        database:Main_DB_Controller = ctx.client.database
+        await database.remove_dailymoney_add_role_message(ctx.message.id)
         await ctx.message.delete()
 
     async def callback_delete_discard(self, ctx: discord.Interaction):
         """Called when a user interacts with the "Discard" button of the "delete role" view"""
-        await self.__portal.database.delete_dailymoney_settings_delete_row(ctx.message.id)
+        database:Main_DB_Controller = ctx.client.database
+        await database.delete_dailymoney_settings_delete_row(ctx.message.id)
         await ctx.message.delete()
 
     async def load(self):

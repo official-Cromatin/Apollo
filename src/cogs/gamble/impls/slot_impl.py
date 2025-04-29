@@ -1,6 +1,6 @@
 from discord.ext import commands
 import logging
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 import discord
 import random
 import math
@@ -9,14 +9,14 @@ class Slot_Impl:
     def __init__(self, bot:commands.Bot):
         self.__bot = bot
         self.__logger = logging.getLogger("cmds.gamble.slot")
-        self.__portal = Portal.instance()
 
     async def on_command(self, ctx:discord.Interaction, bet:int):
+        database:Main_DB_Controller = ctx.client.database
         EMOJIS = [":butterfly:", ":heart:", ":dolphin:", ":sun_with_face:", ":green_apple:", ":cherry_blossom:"]
         MAX_VALUE = len(EMOJIS) - 1
 
         # Check sufficient user balance
-        user_balance = await self.__portal.database.get_user_currency(ctx.guild_id, ctx.user.id)
+        user_balance = await database.get_user_currency(ctx.guild_id, ctx.user.id)
         if user_balance is None:
             embed = discord.Embed(
                 description = "You do not have an account balance yet\nCollect your dailymoney or get gifted some",
@@ -87,9 +87,9 @@ class Slot_Impl:
         if payout == bet:
             pass
         elif payout > bet:
-            await self.__portal.database.add_to_user_balance(ctx.guild_id, ctx.user.id, payout - bet)
+            await database.add_to_user_balance(ctx.guild_id, ctx.user.id, payout - bet)
         elif payout < bet:
-            await self.__portal.database.substract_from_user_balance(ctx.guild_id, ctx.user.id, bet - payout)
+            await database.substract_from_user_balance(ctx.guild_id, ctx.user.id, bet - payout)
 
 async def setup(bot):
     pass

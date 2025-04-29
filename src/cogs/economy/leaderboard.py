@@ -4,7 +4,6 @@ from discord.ext import commands
 import logging
 from cogs.base_cog import Base_Cog
 import math
-from utils.portal import Portal
 from utils.database.main_controller import Main_DB_Controller
 from utils.interaction_handler.button import Button_Interaction_Handler
 
@@ -14,18 +13,19 @@ from utils.datetime_tools import get_elapsed_time_milliseconds
 class Leaderboard_Command(Base_Cog):
     def __init__(self, bot):
         self.__bot:commands.Bot = bot
-        self.__portal:Portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.maintenance"))
 
     async def get_number_of_leaderboard_pages(self, guild_id:int, page_size:int = 9) -> int:
         """Returns the number of pages that can be displayed for an leaderboard, for an certain guild"""
-        return math.ceil(await self.__portal.database.get_number_of_users(guild_id) / page_size)
+        database:Main_DB_Controller = self.__bot.database
+        return math.ceil(await database.get_number_of_users(guild_id) / page_size)
     
     async def get_next_page(self, message_id:int, increment:bool = True) -> int:
         """Returns the true (first page is `0`) id of the next page
         
         When `increment` is `False`, it will be counted downwards, but never below zero"""
-        current_page = await self.__portal.database.get_leaderboard_page(message_id)
+        database:Main_DB_Controller = self.__bot.database
+        current_page = await database.get_leaderboard_page(message_id)
         if increment:
             current_page = current_page + 1
         else:
@@ -44,7 +44,8 @@ class Leaderboard_Command(Base_Cog):
     
     async def create_embed(self, guild_id:int, current_page:int, number_of_pages:int) -> discord.Embed:
         """Create a new embed, to display the users on the current page aswell as thier currency"""
-        users = await self.__portal.database.get_leaderboard_page_users(guild_id, current_page * 9)
+        database:Main_DB_Controller = self.__bot.database
+        users = await database.get_leaderboard_page_users(guild_id, current_page * 9)
         placement = current_page * 9
 
         embed = discord.Embed(
@@ -67,6 +68,7 @@ class Leaderboard_Command(Base_Cog):
     @app_commands.command(name = "leaderboard", description = "Displays the leaderboard, for the users with the most currency on the server")
     @app_commands.describe(current_page = "Display an certain page of the leaderboard")
     async def show_leaderboard(self, ctx: discord.Interaction, current_page:int = 0):
+        database:Main_DB_Controller = self.__bot.database
         no_of_pages = await self.get_number_of_leaderboard_pages(ctx.guild_id)
 
         if current_page > no_of_pages:
@@ -86,25 +88,29 @@ class Leaderboard_Command(Base_Cog):
         await ctx.followup.send(embed = embed, view = self.create_button_view(current_page_offset, no_of_pages))
         
         message = await ctx.original_response()
-        await self.__portal.database.create_leaderboard_page(message.id, current_page_offset)
+        await database.create_leaderboard_page(message.id, current_page_offset)
 
     #@Button_Interaction_Handler.link_button_callback("econ.lb.prev")
     async def previous_button_callback(self, ctx: discord.Interaction):
+        database:Main_DB_Controller = self.__bot.database
+
         current_page = await self.get_next_page(ctx.message.id, False)
         no_of_pages = await self.get_number_of_leaderboard_pages(ctx.guild_id)
 
         embed = await self.create_embed(ctx.guild_id, current_page, no_of_pages)
         await ctx.response.edit_message(embed = embed, view = self.create_button_view(current_page, no_of_pages))
-        await self.__portal.database.update_leaderboard_page(ctx.message.id, current_page)
+        await database.update_leaderboard_page(ctx.message.id, current_page)
 
     #@Button_Interaction_Handler.link_button_callback("econ.lb.next")
     async def next_button_callback(self, ctx: discord.Interaction):
+        database:Main_DB_Controller = self.__bot.database
+
         current_page = await self.get_next_page(ctx.message.id, True)
         no_of_pages = await self.get_number_of_leaderboard_pages(ctx.guild_id)
 
         embed = await self.create_embed(ctx.guild_id, current_page, no_of_pages)
         await ctx.response.edit_message(embed = embed, view = self.create_button_view(current_page + 1, no_of_pages))
-        await self.__portal.database.update_leaderboard_page(ctx.message.id, current_page)
+        await database.update_leaderboard_page(ctx.message.id, current_page)
 
     async def cog_load(self):
         Button_Interaction_Handler.link_button_callback("econ.lb.prev", instance=self)(self.previous_button_callback)

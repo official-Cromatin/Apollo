@@ -1,22 +1,22 @@
 from discord.ext import commands
 import discord
 import logging
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 
 class Experience_Impl:
     def __init__(self, bot:commands.Bot) -> None:
         self.__bot = bot
         self.__logger = logging.getLogger("evnt.msg.experience")
-        self.__portal = Portal.instance()
 
     async def handle(self, msg:discord.Message):
         # Check if the user is applicable for getting experience
-        if await self.__portal.database.user_for_experience_applicable(msg.guild.id, msg.author.id) == False:
+        database:Main_DB_Controller = self.__bot.database
+        if await database.user_for_experience_applicable(msg.guild.id, msg.author.id) == False:
             return
-        await self.__portal.database.reset_user_experience_gain(msg.guild.id, msg.author.id)
+        await database.reset_user_experience_gain(msg.guild.id, msg.author.id)
 
         # Load settings for the experience channel
-        channel_settings:tuple = await self.__portal.database.get_experience_settings(msg.channel.id)
+        channel_settings:tuple = await database.get_experience_settings(msg.channel.id)
         if channel_settings is None:
             self.__logger.error(f"Channel {msg.channel.name} (ID: {msg.channel.id}, GUILD: {msg.guild.name}) has activated the gain of experience, but no settings could be found. Was there a problem saving?")
             return
@@ -30,7 +30,7 @@ class Experience_Impl:
             experience = maximum_experience
         
         # Add to users experience
-        leveled_up, user_lvl, user_xp = await self.__portal.database.add_to_user_experience(msg.guild.id, msg.author.id, experience)
+        leveled_up, user_lvl, user_xp = await database.add_to_user_experience(msg.guild.id, msg.author.id, experience)
         additonal_log = ""
         if leveled_up:
             embed = discord.Embed(
