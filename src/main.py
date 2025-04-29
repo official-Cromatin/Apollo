@@ -23,20 +23,21 @@ app_logger.info("Starting Apollo ...")
 # Import all the remaining dependencies
 import discord
 from pathlib import Path
-from utils.portal import Portal
 from utils.datetime_tools import get_elapsed_time_big
 from utils.adv_configparser import Advanced_ConfigParser
 import re
 import traceback
 import asyncio
+import sys
 from bot import Apollo_Bot
 
 source_path = Path(__file__).resolve()
 base_path = source_path.parents[1]
 app_logger.info(f"Using the following path as entrypoint: '{base_path}'")
+PROGRAM_VERSION = "0.3"
 
 # Create bot instance
-bot = Apollo_Bot(base_path, startup_time)
+bot = Apollo_Bot(base_path, startup_time, PROGRAM_VERSION)
 bot_config = Advanced_ConfigParser(Path.joinpath(base_path, "config", "bot.ini"))
 if re.match(r'[A-Za-z\d]{24}\.[\w-]{6}\.[\w-]{27}', bot_config["DISCORD"]["TOKEN"]):
     app_logger.critical("Bot (config/bot.ini) configuration invalid, please set a valid token")
@@ -47,21 +48,12 @@ elif bot_config.compare_to_template() not in ("equal", "config_minus"):
 else:
     app_logger.info("Bot configuration valid, continuing with startup")
 
-# Execute some housekeeping actions
-portal = Portal.instance()
-portal.bot_config = bot_config
-portal.STARTUP_TIMESTAMP = startup_time
-portal.source_path = source_path.parents[0]
-bot.set_portal(portal)
-
 # Setup handlers to handle states of command execution
 @bot.tree.error
 async def on_app_command_error(ctx:discord.Interaction, error):
     """Executed when exception during command execution occurs"""
     print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
     traceback.print_exception(type(error), error, error.__traceback__)
-
-    portal.no_failed_commands += 1
 
 try:
     bot.run(bot_config["DISCORD"]["TOKEN"], log_handler = None)

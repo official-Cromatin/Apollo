@@ -3,7 +3,6 @@ from discord.ext import commands
 from datetime import datetime
 from utils.adv_configparser import Advanced_ConfigParser
 from utils.datetime_tools import get_elapsed_time_milliseconds, get_elapsed_time_smal
-from utils.portal import Portal
 import logging
 from pathlib import Path
 import traceback
@@ -14,21 +13,18 @@ from utils.interaction_handler.role_select import RoleSelect_Interaction_Handler
 from utils.interaction_handler.custom_select import Select_Interaction_Handler
 
 class Apollo_Bot(commands.Bot):
-    def __init__(self, base_path:Path, startup_time:float):
+    def __init__(self, base_path:Path, startup_time:float, program_version:str):
         intents = discord.Intents.default()
         intents.messages = True
         intents.message_content = True
         intents.members = True
         super().__init__(command_prefix=None, help_command=None, intents=intents)
 
-        self.__portal:Portal
+        self.PROGRAM_VERSION = program_version
         self.__first_on_ready = False
         self.__base_path = base_path
         self.__startup_time = startup_time
         self.__database:PostgreSQL_Adapter
-
-    def set_portal(self, portal:Portal):
-        self.__portal = portal
 
     async def hybrid_get_user(self, user_id:int) -> discord.User | None:
         """Returns a user with the given ID
@@ -52,7 +48,6 @@ class Apollo_Bot(commands.Bot):
             match interaction.type.name:
                 case discord.InteractionType.application_command.name:
                     print("Interaction with bot", interaction.command.name)
-                    # self.__portal.no_executed_commands += 1
                 case discord.InteractionType.ping.name:
                     print("App got pinged by discord")
                 case discord.InteractionType.autocomplete.name:
