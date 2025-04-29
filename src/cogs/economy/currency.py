@@ -3,7 +3,6 @@ from cogs.base_cog import Base_Cog
 import discord
 from discord import app_commands
 from discord.ext import commands
-from utils.portal import Portal
 from utils.database.main_controller import Main_DB_Controller
 import traceback
 
@@ -15,10 +14,8 @@ class Currency_Command(Base_Cog):
     @app_commands.command(name = "currency", description = "Displays your own or someone else's account balance")
     @app_commands.describe(member = "Displays balance for the selected user")
     async def currency(self, ctx: discord.Interaction, member: discord.Member = None):
+        database:Main_DB_Controller = ctx.client.database
         try:
-            portal:Portal = Portal.instance()
-            database:Main_DB_Controller = portal.database
-
             if member:
                 currency = await database.get_user_currency(ctx.guild_id, member.id)
                 print("Selected member", ctx.guild_id, member.id)

@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 from cogs.base_cog import Base_Cog
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 from datetime import datetime
 from utils.datetime_tools import get_elapsed_time_milliseconds
 from cogs.event.message.impls.experience_impl import Experience_Impl
@@ -16,7 +16,6 @@ class Message_Events(Base_Cog):
         self.__pick_money:PickMoney_Impl = None
 
         self.__bot = bot
-        self.__portal = Portal.instance()
         super().__init__(logging.getLogger("evnt.msg"))
 
     @commands.Cog.listener()
@@ -31,7 +30,8 @@ class Message_Events(Base_Cog):
                 return
 
             # Check what kind of functionality is enabled for that channel
-            functionality = await self.__portal.database.get_channel_functionality(msg.channel.id)
+            database:Main_DB_Controller = ctx.client.database
+            functionality = await database.get_channel_functionality(msg.channel.id)
         
             if functionality:
                 if functionality[0]: # Experience

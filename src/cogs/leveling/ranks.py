@@ -3,7 +3,6 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 from cogs.base_cog import Base_Cog
-from utils.portal import Portal
 from utils.database.main_controller import Main_DB_Controller
 import math
 from tabulate import tabulate
@@ -13,19 +12,19 @@ from utils.interaction_handler.button import Button_Interaction_Handler
 class Ranks_Command(Base_Cog):
     def __init__(self, bot:commands.Bot):
         self.__bot = bot
-        self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.ranks"))
 
     async def get_number_of_rank_pages(self, guild_id:int, page_size:int = 20) -> int:
         """Returns the number of pages that can be displayed for the ranking"""
-        return math.ceil(await self.__portal.database.get_number_of_level_users(guild_id) / page_size)
+        database:Main_DB_Controller = self.__bot.database
+        return math.ceil(await database.get_number_of_level_users(guild_id) / page_size)
     
     async def get_next_page_number(self, message_id:int, increase:bool = True) -> int:
         """Returns the page number of the next page (starting with 0)
         
         When `increase` is `False`, it will be counted downwards, but never below zero"""
-        print("MESSAGE ID", message_id)
-        current_page = await self.__portal.database.get_ranks_page(message_id)
+        database:Main_DB_Controller = self.__bot.database
+        current_page = await database.get_ranks_page(message_id)
         if increase:
             current_page += 1
         else:
@@ -36,7 +35,8 @@ class Ranks_Command(Base_Cog):
     
     async def get_table(self, guild:discord.Guild, page:int = 0) -> str:
         """Creates the table containing a maximum of 20 entrys to display"""
-        users_info = await self.__portal.database.get_ranks_page_users(guild.id, page)
+        database:Main_DB_Controller = self.__bot.database
+        users_info = await database.get_ranks_page_users(guild.id, page)
         table_data = []
         user_position = page * 1 + 1
 
@@ -75,6 +75,7 @@ class Ranks_Command(Base_Cog):
     @app_commands.command(name = "ranks", description = "Displays the global decending ranking link for this guild")
     @app_commands.describe(page = "Number of the page you want to display")
     async def ranks(self, ctx:discord.Interaction, page:int = 0):
+        database:Main_DB_Controller = ctx.client.database
         if page < 0:
             await ctx.response.send_message("The page number must be greater than `0`", ephemeral = True)
             return
@@ -94,10 +95,11 @@ class Ranks_Command(Base_Cog):
 
         # Modify database
         message = await ctx.original_response()
-        await self.__portal.database.create_ranks_view(message.id, page)
+        await database.create_ranks_view(message.id, page)
 
     async def callback_previous(self, ctx:discord.Interaction):
         """Called when a user interacts with the "Previous" button of the "ranks" view"""
+        database:Main_DB_Controller = ctx.client.database
         next_page = await self.get_next_page_number(ctx.message.id, False)
         number_of_pages = await self.get_number_of_rank_pages(ctx.guild_id)
 
@@ -107,10 +109,11 @@ class Ranks_Command(Base_Cog):
         await ctx.response.edit_message(content = message_content, view = view)
 
         # Update database
-        await self.__portal.database.set_ranks_page(ctx.message.id, next_page)
+        await database.set_ranks_page(ctx.message.id, next_page)
 
     async def callback_next(self, ctx:discord.Interaction):
         """Called when a user interacts with the "Next" button of the "ranks" view"""
+        database:Main_DB_Controller = ctx.client.database
         next_page = await self.get_next_page_number(ctx.message.id, True)
         number_of_pages = await self.get_number_of_rank_pages(ctx.guild_id)
 
@@ -120,7 +123,7 @@ class Ranks_Command(Base_Cog):
         await ctx.response.edit_message(content = message_content, view = view)
 
         # Update database
-        await self.__portal.database.set_ranks_page(ctx.message.id, next_page)
+        await database.set_ranks_page(ctx.message.id, next_page)
 
     async def cog_load(self):
         Button_Interaction_Handler.link_button_callback("ranks.prev", self)(self.callback_previous)

@@ -25,6 +25,7 @@ class Apollo_Bot(commands.Bot):
         self.__first_on_ready = False
         self.__base_path = base_path
         self.__startup_time = startup_time
+        self.__database:PostgreSQL_Adapter
 
     def set_portal(self, portal:Portal):
         self.__portal = portal
@@ -85,7 +86,6 @@ class Apollo_Bot(commands.Bot):
 
             # Open the config for the database credentials
             database_config = Advanced_ConfigParser(Path.joinpath(self.__base_path, "config", "database.ini"))
-            self.__portal.database_config = database_config
             await self.change_presence(status = discord.Status.dnd, activity = discord.CustomActivity("Executing pre startup routine (1/2)"))
 
             try:
@@ -99,7 +99,7 @@ class Apollo_Bot(commands.Bot):
                     int(database_config["POSTGRESQL"]["PORT"])
                 )
                 controller = Main_DB_Controller(psql_adapter)
-                self.__portal.database = controller
+                self.__database = controller
                 await self.change_presence(status = discord.Status.online, activity = None)
             except Exception as error:
                 traceback.print_exception(type(error), error, error.__traceback__)
@@ -114,3 +114,8 @@ class Apollo_Bot(commands.Bot):
 
     async def on_message(self, message):
         pass
+
+    @property
+    def database(self) -> PostgreSQL_Adapter:
+        """Main_DB_Controller wich handles every request to the database for this bot"""
+        return self.__database

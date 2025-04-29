@@ -1,21 +1,21 @@
 from discord.ext import commands
 import discord
 import logging
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 import math
 
 class Info_Impl:
     def __init__(self, bot:commands.Bot):
         self.__bot = bot
         self.__logger = logging.getLogger("cmds.leveling.configure")
-        self.__portal = Portal.instance()
 
     async def on_command(self, ctx:discord.Interaction, channel:discord.TextChannel | None):
+        database:Main_DB_Controller = ctx.client.database
         if channel is None:
             channel = ctx.channel
 
         # Check if the selected channel is a leveling channel
-        channel_ids = await self.__portal.database.get_leveling_channels(ctx.guild_id)
+        channel_ids = await database.get_leveling_channels(ctx.guild_id)
         if not channel.id in channel_ids:
             embed = discord.Embed(
                 title = f"Information about the channel: {channel.name}",
@@ -25,7 +25,7 @@ class Info_Impl:
             return
 
         # Get the information for the specified channel
-        default_multiplier, minimum_threshold, maximum_experience = await self.__portal.database.get_experience_settings(channel.id)
+        default_multiplier, minimum_threshold, maximum_experience = await database.get_experience_settings(channel.id)
 
         # Create and send the embed
         embed = discord.Embed(

@@ -3,20 +3,20 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 from cogs.base_cog import Base_Cog
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 
 class Give_Command(Base_Cog):
     def __init__(self, bot):
         self.__bot = bot
-        self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.give"))
 
     @app_commands.command(name = "give", description = "Transfer part of your balance to another user")
     @app_commands.describe(member = "User you want to give money to")
     @app_commands.describe(amount = "Amount of balance you want to gift")
     async def give(self, ctx: discord.Interaction, member: discord.Member, amount: int):
+        database:Main_DB_Controller = ctx.client.database
         # Get balance of current user
-        user_balance = await self.__portal.database.get_user_currency(ctx.guild_id, ctx.user.id)
+        user_balance = await database.get_user_currency(ctx.guild_id, ctx.user.id)
         
         # Check for sufficient balance
         if user_balance is None:
@@ -47,8 +47,8 @@ class Give_Command(Base_Cog):
             return
         
         # Transfer the money to another user
-        await self.__portal.database.substract_from_user_balance(ctx.guild_id, ctx.user.id, amount)
-        await self.__portal.database.add_to_user_balance(ctx.guild_id, member.id, amount)
+        await database.substract_from_user_balance(ctx.guild_id, ctx.user.id, amount)
+        await database.add_to_user_balance(ctx.guild_id, member.id, amount)
 
         embed = discord.Embed(
             description = (

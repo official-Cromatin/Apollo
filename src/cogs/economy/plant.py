@@ -3,14 +3,13 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 from cogs.base_cog import Base_Cog
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 import aiofiles
 from pathlib import Path
 
 class Plant_Command(Base_Cog):
     def __init__(self, bot:commands.Bot):
         self.__bot = bot
-        self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.plant"))
 
     @app_commands.command(name = "plant", description = "Plant a certain amount of your balance in the current channel")
@@ -26,7 +25,8 @@ class Plant_Command(Base_Cog):
             return
 
         # Check for sufficient balance of user
-        user_balance = await self.__portal.database.get_user_currency(ctx.guild_id, ctx.user.id)
+        database:Main_DB_Controller = ctx.client.database
+        user_balance = await database.get_user_currency(ctx.guild_id, ctx.user.id)
         if amount > user_balance:
             embed = discord.Embed(
                 description = f"You try to plant `{amount}` :dollar:, but only have `{user_balance}` :dollar:",
@@ -45,8 +45,8 @@ class Plant_Command(Base_Cog):
 
         # Substract from users balance and create db entry
         message = await ctx.original_response()
-        await self.__portal.database.substract_from_user_balance(ctx.guild_id, ctx.user.id, amount)
-        await self.__portal.database.create_pick_message(ctx.guild_id, ctx.channel_id, message.id, amount)
+        await database.substract_from_user_balance(ctx.guild_id, ctx.user.id, amount)
+        await database.create_pick_message(ctx.guild_id, ctx.channel_id, message.id, amount)
 
 
 async def setup(bot: commands.Bot):

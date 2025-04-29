@@ -1,7 +1,7 @@
 from discord.ext import commands
 import discord
 import logging
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 from utils.interaction_handler.button import Button_Interaction_Handler
 from cogs.leveling.impls.shared_functions import Shared_Functions
 
@@ -9,7 +9,6 @@ class Configure_Impl:
     def __init__(self, bot:commands.Bot):
         self.__bot = bot
         self.__logger = logging.getLogger("cmds.leveling.configure")
-        self.__portal = Portal.instance()
     
     @staticmethod
     def return_biggest(*values:int | None, default:int = None) -> int | None:
@@ -24,8 +23,9 @@ class Configure_Impl:
         return min(filtered_values, default = default)
 
     async def on_command(self, ctx:discord.Interaction, default_multiplier:float, minimum_threshold:int, maximum_experience:int):
+        database:Main_DB_Controller = ctx.client.database
         # Check if there is a configuration presend
-        settings = await self.__portal.database.get_experience_settings_message(ctx.channel_id)
+        settings = await database.get_experience_settings_message(ctx.channel_id)
         if settings is None:
             embed = discord.Embed(
                 description = (
@@ -98,7 +98,7 @@ class Configure_Impl:
         await ctx.response.send_message(embed = embed, ephemeral = True)
 
         # Edit the values in the database
-        await self.__portal.database.set_experience_settings_message(ctx.channel_id, default_multiplier_db, minimum_threshold_db, maximum_experience_db)
+        await database.set_experience_settings_message(ctx.channel_id, default_multiplier_db, minimum_threshold_db, maximum_experience_db)
 
         # Edit the original message
         await Shared_Functions.edit_message(
@@ -108,8 +108,9 @@ class Configure_Impl:
     
     async def callback_save(self, ctx:discord.Interaction):
         """Called when a user interacts with the save button of the message"""
+        database:Main_DB_Controller = ctx.client.database
         # Load the associated values with the message
-        channel_settings:tuple = await self.__portal.database.get_experience_settings_message(ctx.channel_id)
+        channel_settings:tuple = await database.get_experience_settings_message(ctx.channel_id)
         if channel_settings is None:
             embed = discord.Embed(
                 title = "Error while saving",
@@ -125,7 +126,7 @@ class Configure_Impl:
             default_multiplier, minimum_threshold, maximum_experience, _, original_message_id = channel_settings
 
         # Save the new values to the database
-        await self.__portal.database.set_experience_settings(ctx.guild_id, ctx.channel_id, default_multiplier, minimum_threshold, maximum_experience)
+        await database.set_experience_settings(ctx.guild_id, ctx.channel_id, default_multiplier, minimum_threshold, maximum_experience)
         
         # Cleanup
         await self.callback_discard(ctx)
@@ -135,8 +136,9 @@ class Configure_Impl:
 
     async def callback_discard(self, ctx:discord.Interaction):
         """Called when a user interacts with the discard button of the message"""
+        database:Main_DB_Controller = ctx.client.database
         # Remove the row in the database
-        await self.__portal.database.delete_experience_settings_message(ctx.message.id)
+        await database.delete_experience_settings_message(ctx.message.id)
 
         # Delete the message
         await ctx.message.delete()

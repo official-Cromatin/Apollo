@@ -2,14 +2,13 @@ from discord.ext import commands
 import discord
 from discord import app_commands
 import logging
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 from cogs.leveling.impls.shared_functions import Shared_Functions
 
 class Copy_Impl:
     def __init__(self, bot:commands.Bot):
         self.__bot = bot
         self.__logger = logging.getLogger("cmds.leveling.copy")
-        self.__portal = Portal.instance()
 
     def get_embed(self, default_multiplier:float, minimum_threshold:int, maximum_experience:int, channel_name:str = None) -> discord.Embed:
         """Creates and returns the embed, embedding the provided values"""
@@ -40,8 +39,9 @@ class Copy_Impl:
 
     async def channel_name_autocomplete(self, ctx:discord.Interaction, current:str) -> list[app_commands.Choice]:
         """Autocompletes the channel name based on the configured experience channels"""
+        database:Main_DB_Controller = ctx.client.database
         # Request the id of all channels having leveling enabled
-        channel_ids = await self.__portal.database.get_leveling_channels(ctx.guild_id)
+        channel_ids = await database.get_leveling_channels(ctx.guild_id)
         choices = []
         counter = 0
         for channel_id in channel_ids:
@@ -61,6 +61,7 @@ class Copy_Impl:
         return choices
 
     async def on_command(self, ctx:discord.Interaction, channel:str):
+        database:Main_DB_Controller = ctx.client.database
         # Check if the input is numeric
         if not channel.isnumeric():
             embed = discord.Embed(
@@ -72,7 +73,7 @@ class Copy_Impl:
             return
         
         # Check if the given channel_id matches to any present channels
-        channel_ids = await self.__portal.database.get_leveling_channels(ctx.guild_id)
+        channel_ids = await database.get_leveling_channels(ctx.guild_id)
         selected_channel_id = int(channel)
         if not selected_channel_id in channel_ids:
             embed = discord.Embed(
@@ -87,7 +88,7 @@ class Copy_Impl:
             return
         
         # Check if there is a configuration message present in the current channel
-        channel_settings = await self.__portal.database.get_experience_settings_message(ctx.channel_id)
+        channel_settings = await database.get_experience_settings_message(ctx.channel_id)
         if channel_settings is None:
             embed = discord.Embed(
                 description = (
@@ -100,8 +101,8 @@ class Copy_Impl:
             return
         
         # Copy the settings from the provided one and apply them to this channel
-        default_multiplier, minimum_threshold, maximum_experience = await self.__portal.database.get_experience_settings(selected_channel_id)
-        await self.__portal.database.set_experience_settings_message(ctx.channel_id, default_multiplier, minimum_threshold, maximum_experience)
+        default_multiplier, minimum_threshold, maximum_experience = await database.get_experience_settings(selected_channel_id)
+        await database.set_experience_settings_message(ctx.channel_id, default_multiplier, minimum_threshold, maximum_experience)
 
         # Update the configuration message
         await Shared_Functions.update_edit_message(ctx.channel, channel_settings[3], default_multiplier, minimum_threshold, maximum_experience)
