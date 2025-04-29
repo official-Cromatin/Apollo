@@ -25,6 +25,7 @@ class Apollo_Bot(commands.Bot):
         self.__base_path = base_path
         self.__startup_time = startup_time
         self.__database:PostgreSQL_Adapter
+        self.__active_views:dict[int, discord.ui.View] = {}
 
     async def hybrid_get_user(self, user_id:int) -> discord.User | None:
         """Returns a user with the given ID
@@ -114,3 +115,7 @@ class Apollo_Bot(commands.Bot):
     def database(self) -> PostgreSQL_Adapter:
         """Main_DB_Controller wich handles every request to the database for this bot"""
         return self.__database
+
+    def active_views(self) -> dict[int, discord.ui.View]:
+        """Dictionary containin all active views for this bot instance"""
+        return self.__active_views
