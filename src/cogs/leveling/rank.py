@@ -3,18 +3,18 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 from cogs.base_cog import Base_Cog
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 from utils.calc_lvl_xp import calculate_current_level_experience
 
 class Rank_Command(Base_Cog):
     def __init__(self, bot:commands.Bot):
         self.__bot = bot
-        self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.rank"))
 
     @app_commands.command(name = "rank", description = "Shows your current rank in the level system")
     @app_commands.describe(member = "The member you want to see the rank of")
     async def command_name(self, ctx: discord.Interaction, member:discord.Member = None):
+        database:Main_DB_Controller = ctx.client.database
         if member:
             user_id = member.id
             response_pronoun = "His"
@@ -25,7 +25,7 @@ class Rank_Command(Base_Cog):
             error_discription = "You have no experience on this server yet, participate in the chat to get experience"
 
         # Check if the user has any experience
-        result = await self.__portal.database.get_user_experience(ctx.guild_id, user_id)
+        result = await database.get_user_experience(ctx.guild_id, user_id)
         if result is None:
             embed = discord.Embed(
                 description = error_discription,
@@ -36,7 +36,7 @@ class Rank_Command(Base_Cog):
         user_xp, user_xp_total, user_lvl = result
 
         # Create the embed
-        user_rank = await self.__portal.database.get_user_rank(ctx.guild_id, user_id)
+        user_rank = await database.get_user_rank(ctx.guild_id, user_id)
         medal = ""
         match user_rank:
             case 0:

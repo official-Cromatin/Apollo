@@ -3,19 +3,20 @@ from discord import app_commands
 from discord.ext import commands
 import logging
 from cogs.base_cog import Base_Cog
-from utils.portal import Portal
+from utils.database.main_controller import Main_DB_Controller
 import asyncio
 
 class Pick_Command(Base_Cog):
     def __init__(self, bot):
         self.__bot = bot
-        self.__portal = Portal.instance()
         super().__init__(logging.getLogger("cmds.pick"))
 
     @app_commands.command(name = "pick", description = "Collect appeared or planted money in the current channel")
     async def pick(self, ctx: discord.Interaction):
+        database:Main_DB_Controller = ctx.client.database
+
         # Check for pick message
-        result = await self.__portal.database.get_last_pick_message(ctx.channel_id)
+        result = await database.get_last_pick_message(ctx.channel_id)
         if result is None:
             embed = discord.Embed(
                 description = "There is currently no money to collect",
@@ -39,7 +40,7 @@ class Pick_Command(Base_Cog):
         await ctx.response.send_message(embed = embed)
 
         # Credit the user
-        await self.__portal.database.add_to_user_balance(ctx.guild_id, ctx.user.id, amount)
+        await database.add_to_user_balance(ctx.guild_id, ctx.user.id, amount)
 
         # Wait 5 seconds and delete the notification message
         await asyncio.sleep(5.0)
