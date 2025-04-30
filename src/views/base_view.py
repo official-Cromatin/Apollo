@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from bot import Apollo_Bot
 from typing import Any, Union, Callable
 from views.exceptions import AlreadyActive, StoppedBefore, AlreadyStopped, NotActive
-from database.models.saved_state import Saved_State
+from database.models.saved_state.model import Saved_State
 import logging
 
 class Base_View(discord.ui.View, ABC):

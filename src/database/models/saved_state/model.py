@@ -1,7 +1,9 @@
-from database.models.base_model import Base_Model
-from database.models.exceptions import NotFound, NoLongerExists, AlreadyExists
+from database.models.base_model.base_model import Base_Model
+from database.models.base_model.exceptions import NotFound, NoLongerExists, AlreadyExists
 from asyncpg import Connection, UniqueViolationError
 from datetime import datetime
+from database.models.saved_state.enum import View_Names
+
 
 class Saved_State(Base_Model):
     """
@@ -13,22 +15,24 @@ class Saved_State(Base_Model):
     
     | Attribute name    | Mutability   | Description                                            |
     |-------------------|--------------|--------------------------------------------------------|
-    | `channel_id`      | `read-only`  | ID of the channel the state is saved for               |
     | `guild_id`        | `read-only`  | ID of the guild the state is saved for                 |
+    | `channel_id`      | `read-only`  | ID of the channel the state is saved for               |
+    | `message_id`      | `read-only`  | ID of the messsage the state belongs to                |
     | `state`           | `read-only`  | Relevant data of the view to be restorable             |
-    | `view_state`      | `read-only`  | State of the view                                      |
-    | `creation_date`   | `read-only`  | Datetime the state was saved                           |
+    | `view_name`       | `read-only`  | Enum member of the View_Names                          |
+    | `creation_date`   | `read-only`  | Timestamp at wich the save was created                 |
     """
     LOAD = ""
     SAVE = ""
     DELETE = ""
 
-    def __init__(self, database_connection:Connection, channel_id:int, guild_id:int, state:dict, view_state:int, creation_date:datetime):
+    def __init__(self, database_connection:Connection, channel_id:int, guild_id:int, message_id:int, state:dict, view_name:View_Names, creation_date:datetime):
         super().__init__(database_connection)
         self.__channel_id = channel_id
         self.__guild_id = guild_id
+        self.__message_id = message_id
         self.__state = state
-        self.__view_state = view_state
+        self.__view_name = view_name
         self.__creation_date = creation_date
     
     def __str__(self):
@@ -102,27 +106,37 @@ class Saved_State(Base_Model):
         return self
 
     def arguments(self) -> dict:
-        return {"channel_id": self.__channel_id, "guild_id": self.__guild_id}
+        return {"channel_id": self.__channel_id, "guild_id": self.__guild_id, "message_id": self.__message_id}
 
     def data(self) -> dict:
-        return {"state": self.__state, "view_state": self.__view_state, "creation_date": self.__creation_date}
-    
-    @property
-    def channel_id(self) -> int:
-        return self.__channel_id
+        return {"state": self.__state, "view_state": self.__view_name.name, "creation_date": self.__creation_date}
     
     @property
     def guild_id(self) -> int:
+        """ID of the guild the state is saved for"""
         return self.__guild_id
     
     @property
+    def channel_id(self) -> int:
+        """ID of the channel the state is saved for"""
+        return self.__channel_id
+    
+    @property
+    def message_id(self) -> int:
+        """ID of the messsage the state belongs to"""
+        return self.__message_id
+    
+    @property
     def state(self) -> dict:
+        """Relevant data of the view to be restorable"""
         return self.__state
     
     @property
-    def view_state(self) -> int:
-        return self.__view_state
+    def view_name(self) -> View_Names:
+        """Enum member of the View_Names"""
+        return self.__view_name
     
     @property
     def creation_date(self) -> datetime:
+        """Timestamp at wich the save was created"""
         return self.__creation_date
