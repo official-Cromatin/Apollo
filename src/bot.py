@@ -11,6 +11,7 @@ from utils.database.main_controller import Main_DB_Controller
 from utils.interaction_handler.button import Button_Interaction_Handler
 from utils.interaction_handler.role_select import RoleSelect_Interaction_Handler
 from utils.interaction_handler.custom_select import Select_Interaction_Handler
+from utils.database.sql_loader import SQL_Loader, Database_Types
 
 class Apollo_Bot(commands.Bot):
     def __init__(self, base_path:Path, startup_time:float, program_version:str):
@@ -26,6 +27,7 @@ class Apollo_Bot(commands.Bot):
         self.__startup_time = startup_time
         self.__database:PostgreSQL_Adapter
         self.__active_views:dict[int, discord.ui.View] = {}
+        self.__sql_loader:SQL_Loader = None
 
     async def hybrid_get_user(self, user_id:int) -> discord.User | None:
         """Returns a user with the given ID
@@ -37,6 +39,11 @@ class Apollo_Bot(commands.Bot):
         return await self.fetch_user(user_id)
 
     async def setup_hook(self):
+        # Load the database extensions
+        self.__sql_loader = SQL_Loader(Database_Types.POSTGRESQL, self.__base_path / "src" / "database")
+        for database_model_name in ["saved_state.model"]:
+            await self.load_extension(f"database.models.{database_model_name}")
+
         # Register cogs to handle commands
         for cog_name in ["reload", "economy.currency", "economy.leaderboard", "economy.dailymoney", "economy.give", "gamble.group", "economy.pick", "economy.plant", 
                          "leveling.rank", "leveling.ranks", "setup.group", "leveling.turntoxp", "event.message.group", "leveling.group"]:
@@ -115,7 +122,13 @@ class Apollo_Bot(commands.Bot):
     def database(self) -> PostgreSQL_Adapter:
         """Main_DB_Controller wich handles every request to the database for this bot"""
         return self.__database
+    
+    @property
+    def sql_loader(self) -> SQL_Loader:
+        """SQL_Loader wich handles the loading of the .sql files"""
+        return self.__sql_loader
 
+    @property
     def active_views(self) -> dict[int, discord.ui.View]:
         """Dictionary containin all active views for this bot instance"""
         return self.__active_views

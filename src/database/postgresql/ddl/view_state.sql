@@ -9,5 +9,6 @@ CREATE TABLE "view_state" (
     message_id BIGINT,
     state JSON,
     view_name view_name,
-    creation_date TIMESTAMP WITH TIME ZONE
+    creation_date TIMESTAMP WITH TIME ZONE,
+    UNIQUE (guild_id, channel_id, message_id)
 );
