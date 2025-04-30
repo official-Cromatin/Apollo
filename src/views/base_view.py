@@ -2,7 +2,9 @@ import discord
 from abc import ABC, abstractmethod
 from bot import Apollo_Bot
 from typing import Any, Union, Callable
-from .exceptions import AlreadyActive, StoppedBefore, AlreadyStopped, NotActive
+from views.exceptions import AlreadyActive, StoppedBefore, AlreadyStopped, NotActive
+from database.models.saved_state import Saved_State
+import logging
 
 class Base_View(discord.ui.View, ABC):
     """Base class wich all views have to inherit"""
@@ -37,15 +39,13 @@ class Base_View(discord.ui.View, ABC):
         self._stopped:bool = False
         self._database_id:int = None
 
-    @abstractmethod
     def new(self, *args, **kwargs) -> "Base_View":
         """Creates a new view, responsible for setting all initial values"""
-        ...
+        logging.getLogger("view").info(f"New view (timeout={self.timeout}) created on guild {self._guild_id} in channel {self._channel_id}", extra={"iname": self._view_name, "id": self._message_id})
 
-    @abstractmethod
-    def restore(state:dict[str, Any], message:discord.Message) -> "Base_View":
+    def restore(state:Saved_State, message:discord.Message) -> "Base_View":
         """Restores a existing view from the given state"""
-        ...
+        logging.getLogger("view").info(f"Existing view restored on guild ({state.guild_id}) in channel {state.channel_id}", extra={"iname": state.view_name, "id": state.message_id})
 
     @abstractmethod
     def identify_callback(self, custom_id:str) -> function:
@@ -62,10 +62,9 @@ class Base_View(discord.ui.View, ABC):
         """
         ...
 
-    @abstractmethod
     async def save_state(self):
         """Saves the state the view is currently in"""
-        ...
+        logging.getLogger("view").debug(f"Saved view")
 
     @staticmethod
     def restore_component(component:Union[discord.Button, discord.SelectMenu, discord.TextInput], callback:Callable, row:int = None) -> Union[discord.ui.Button, discord.ui.Select, discord.ui.UserSelect, discord.ui.RoleSelect, discord.ui.MentionableSelect, discord.ui.TextInput]:
@@ -179,11 +178,13 @@ class Base_View(discord.ui.View, ABC):
         self._stopped = True
     
     async def stop(self):
+        logging.getLogger("view").info("View was stopped")
         self.deactivate()
         super().stop()
         await self.save_state()
 
     async def on_timeout(self):
+        logging.getLogger("view").info("View has expired")
         self.deactivate()
         await super().on_timeout()
         await self.save_state()

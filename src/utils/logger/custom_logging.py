@@ -36,6 +36,10 @@ class Custom_Logger:
         events_logger.addHandler(cls.console_handler)
         events_logger.setLevel(logging.DEBUG)
 
+        views_logger = logging.getLogger("view")
+        views_logger.addHandler(cls.console_handler)
+        views_logger.setLevel(logging.DEBUG)
+
         logging.getLogger('discord.app_commands.tree').setLevel(logging.DEBUG)
 
         app_logger.debug("Logging successfully initialized")
