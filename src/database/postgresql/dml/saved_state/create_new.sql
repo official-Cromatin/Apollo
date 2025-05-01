@@ -6,5 +6,6 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (guild_id, channel_id, message_id)
 DO UPDATE SET
     data = EXCLUDED.data,
+    active = EXCLUDED.active,
     last_updated = EXCLUDED.last_updated
 RETURNING id;
