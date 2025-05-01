@@ -20,7 +20,7 @@ class Saved_State(Base_Model):
     | `guild_id`        | `read-only`  | ID of the guild the state is saved for                 |
     | `channel_id`      | `read-only`  | ID of the channel the state is saved for               |
     | `message_id`      | `read-only`  | ID of the messsage the state belongs to                |
-    | `data`            | `read-write` | Relevant data of the view to be restorable             |
+    | `state_data`      | `read-write` | Relevant data of the view to be restorable             |
     | `view_name`       | `read-only`  | Enum member of the View_Names                          |
     | `timeout`         | `read-only`  | Number of seconds after the view will expire           |
     | `active`          | `read-only`  | Indicate if the view is currently loaded               |
@@ -32,12 +32,12 @@ class Saved_State(Base_Model):
     SAVE = ""
     DELETE = ""
 
-    def __init__(self, database_connection:Connection, id:int, guild_id:int, channel_id:int, message_id:int, data:dict, view_name:View_Names, timeout:int, creation_date:datetime, last_loaded:datetime, last_updated:datetime):
+    def __init__(self, database_connection:Connection, id:int, guild_id:int, channel_id:int, message_id:int, state_data:dict, view_name:View_Names, timeout:int, creation_date:datetime, last_loaded:datetime, last_updated:datetime):
         super().__init__(database_connection, id)
         self.__guild_id = guild_id
         self.__channel_id = channel_id
         self.__message_id = message_id
-        self.__data = data
+        self.__state_data = state_data
         self.__view_name = view_name
         self.__timeout = timeout
         self.__creation_date = creation_date
@@ -48,7 +48,7 @@ class Saved_State(Base_Model):
         return f"Saved_State({self.arguments()}, {self.data()})"
     
     @classmethod
-    def create(cls, database_connection:Connection, guild_id:int, channel_id:int, message_id:int, data:dict, view_name:str, timeout:int) -> "Saved_State":
+    def create(cls, database_connection:Connection, guild_id:int, channel_id:int, message_id:int, state_data:dict, view_name:str, timeout:int) -> "Saved_State":
         """Creates a new model with the specified data.
 
         :param Connection database_connection:
@@ -63,7 +63,7 @@ class Saved_State(Base_Model):
         :param int message_id:
             ID of the message the state belongs to
 
-        :param dict data:
+        :param dict state_data:
             Relevant data of the view to be restorable
 
         :param str view_name:
@@ -74,7 +74,7 @@ class Saved_State(Base_Model):
 
         :return:
             The created model"""
-        model = Saved_State(database_connection, None, guild_id, channel_id, message_id, data, view_name, timeout, datetime.now(), None, None)
+        model = Saved_State(database_connection, None, guild_id, channel_id, message_id, state_data, view_name, timeout, datetime.now(), None, None)
         return model
 
     @classmethod
@@ -145,7 +145,7 @@ class Saved_State(Base_Model):
         return self.__message_id
 
     @property
-    def data(self) -> dict:
+    def state_data(self) -> dict:
         """Relevant data of the view to be restorable"""
         return self.__data
 
