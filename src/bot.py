@@ -12,6 +12,7 @@ from utils.interaction_handler.button import Button_Interaction_Handler
 from utils.interaction_handler.role_select import RoleSelect_Interaction_Handler
 from utils.interaction_handler.custom_select import Select_Interaction_Handler
 from utils.database.sql_loader import SQL_Loader, Database_Types
+import asyncpg
 
 class Apollo_Bot(commands.Bot):
     def __init__(self, base_path:Path, startup_time:float, program_version:str):
@@ -26,7 +27,8 @@ class Apollo_Bot(commands.Bot):
         self.__base_path = base_path
         self.__startup_time = startup_time
         self.__database:PostgreSQL_Adapter
-        self.__active_views:dict[int, discord.ui.View] = {}
+        self.__new_database_conn:asyncpg.Connection
+        self.__active_views:dict[int] = {}
         self.__sql_loader:SQL_Loader = None
 
     async def hybrid_get_user(self, user_id:int) -> discord.User | None:
@@ -76,6 +78,30 @@ class Apollo_Bot(commands.Bot):
                         case _:
                             print(f"Component interaction with {interaction.data['component_type']}")
                             print(type(discord.ComponentType.button), type(interaction.data['component_type']))
+
+                    from database.models.saved_state.model import Saved_State
+                    from database.models.saved_state.enum import View_Names
+                    from database.models.base_model.exceptions import NotFound
+
+                    if interaction.message.id in self.__active_views:
+                        logging.getLogger("view").debug("Skipped view recovery as its still active", extra={"iname": self.__active_views[interaction.message.id].view_name.name, "id": interaction.message.id})
+                    else:
+                        try:
+                            state = await Saved_State.load(self.__new_database_conn, interaction.guild.id, interaction.channel.id, interaction.message.id)
+                        except NotFound:
+                            logging.getLogger("view").error(f"Unable to restore view for message {interaction.message.id}, no saved state found")
+                        else:
+                            match state.view_name:
+
+                                case _:
+                                    raise Exception("View not found")
+                            
+                            await interaction.message.edit(view = view)
+                            view.activate()
+                            await view.save_state()
+                            callback = view.identify_callback(interaction.data["custom_id"])
+                            await callback(interaction)
+
         except Exception as error:
             traceback.print_exception(type(error), error, error.__traceback__)
 
@@ -103,6 +129,13 @@ class Apollo_Bot(commands.Bot):
                 )
                 controller = Main_DB_Controller(psql_adapter)
                 self.__database = controller
+                self.__new_database_conn = await asyncpg.connection.connect(
+                    user = database_config["POSTGRESQL"]["USERNAME"],
+                    password = database_config["POSTGRESQL"]["PASSWORD"],
+                    database = database_config["POSTGRESQL"]["DATABASE"],
+                    host = database_config["POSTGRESQL"]["ADRESS"],
+                    port = int(database_config["POSTGRESQL"]["PORT"])
+                )
                 await self.change_presence(status = discord.Status.online, activity = None)
             except Exception as error:
                 traceback.print_exception(type(error), error, error.__traceback__)
@@ -122,6 +155,11 @@ class Apollo_Bot(commands.Bot):
     def database(self) -> PostgreSQL_Adapter:
         """Main_DB_Controller wich handles every request to the database for this bot"""
         return self.__database
+    
+    @property
+    def new_database(self) -> asyncpg.Connection:
+        """Database connection for this bot instance"""
+        return self.__new_database_conn
     
     @property
     def sql_loader(self) -> SQL_Loader:
