@@ -4,17 +4,18 @@ from typing import Any
 
 class Base_Model(ABC):
     """Base class from which all models must inherit, they specify the forced fundamental CRUD functions."""
-    def __init__(self, database_connection:Connection):
+    def __init__(self, database_connection:Connection, id:int):
         self._connection = database_connection
-        self._id:int
+        self._id = id
+        self._saved = False
         self._deleted = False
     
     @abstractmethod
     def __str__(self) -> str:
         ...
     
-    @abstractmethod
     @classmethod
+    @abstractmethod
     async def create(cls, *args) -> "Base_Model":
         """Creates a new entry in the database
         
@@ -25,8 +26,8 @@ class Base_Model(ABC):
             If the user currency already exists in the database"""
         ...
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     async def load(cls, *args) -> "Base_Model":
         """Loads an existing entry from the database
         
@@ -78,10 +79,15 @@ class Base_Model(ABC):
         ...
     
     @property
-    def id(self) -> int:
-        """Unique identifier (primary key) of the entry"""
+    def id(self) -> int | None:
+        """Unique identifier (primary key) of the entry, None if not saved"""
         return self._id
     
+    @property
+    def saved(self) -> bool:
+        """Indicates whether the entry has been ever saved"""
+        return self._saved
+
     @property
     def deleted(self) -> bool:
         """Indicates whether the entry has been deleted"""
