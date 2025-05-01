@@ -71,7 +71,8 @@ class GeneralStoredViewException(GeneralExtendedViewException):
 
         :param dict attributes:
             All attributes the view has"""
-        super().__init__(view_name, database_id, attributes)
+        super().__init__(view_name, attributes)
+        self.database_id = database_id
 
 
 class AlreadyStopped(GeneralStoredViewException):
@@ -124,3 +125,8 @@ class AttributeNotFound(GeneralAttributeException):
     """Non-existent attribute was tried to set"""
     def __str__(self):
         return f"While restoring the attributes for the view '{self.name}', a non-existing attribute '{self.attribute_name}' was tried to be set"
+
+
+class MessageIdMissing(GeneralViewException):
+    def __str__(self):
+        return f"Activation of view '{self.name}' failed, no message id set"

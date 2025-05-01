@@ -2,8 +2,9 @@ import discord
 from abc import ABC
 from bot import Apollo_Bot
 from typing import Any, Union, Callable
-from views.exceptions import AlreadyActive, StoppedBefore, AlreadyStopped, NotActive, CallbackNotFound, AttributeNameConflict, AttributeNotFound
+from views.exceptions import AlreadyActive, StoppedBefore, AlreadyStopped, NotActive, CallbackNotFound, AttributeNameConflict, AttributeNotFound, MessageIdMissing
 from database.models.saved_state.model import Saved_State
+from database.models.saved_state.model import View_Names
 import logging
 
 class Base_View(discord.ui.View, ABC):
@@ -17,12 +18,12 @@ class Base_View(discord.ui.View, ABC):
     | `save_state`          | `true`     | Saves the state (values of the attributes) of the view           |
     | `identify_callback`   | `true`     | Identified the matching callback, based on the custom_id         |
     """
-    _view_name:str = None
+    _view_name:View_Names = None
 
-    def __init_subclass__(cls, view_name:str):
+    def __init_subclass__(cls, view_name:View_Names):
         cls._view_name = view_name
     
-    def __init__(self, guild_id:int, channel_id:int, message_id:int, bot:Apollo_Bot, timeout = 180):
+    def __init__(self, guild_id:int, channel_id:int, original_interaction_id:int, bot:"Apollo_Bot", timeout = 180):
         """
         :param int guild_id:
             ID of the Discord guild the view is created in
@@ -30,8 +31,8 @@ class Base_View(discord.ui.View, ABC):
         :param int channel_id:
             ID of the Discord channel the view is created in
 
-        :param int message_id:
-            ID of the Discord message the view belongs to
+        :param int original_interaction_id:
+            ID of the interaction that triggered the creation of the view
 
         :param Apollo_Bot bot:
             Instance of the bot the view was created with
@@ -40,23 +41,27 @@ class Base_View(discord.ui.View, ABC):
             Time in seconds, after wich the view will be saved in the database and removed from memory
         """
         super().__init__(timeout=timeout)
-        self._guild_id = guild_id
-        self._channel_id = channel_id
-        self._message_id = message_id
+        self._original_interaction_id = original_interaction_id
         self._bot = bot
-        self._active = False
         self._stopped = False
-        self._saved_state:Saved_State = None
+        self._saved_state = Saved_State.create(bot.new_database, guild_id, channel_id, None, None, self._view_name, timeout)
         self._view_data_attribute_names:list[str] = []
 
     def new(self, *args, **kwargs) -> "Base_View":
         """Creates a new view, responsible for setting all initial values"""
-        logging.getLogger("view").info(f"New view (timeout={self.timeout}) created on guild {self._guild_id} in channel {self._channel_id}", extra={"iname": self._view_name, "id": self._message_id})
+        logging.getLogger("view").info(f"New view (timeout={self.timeout}) created on guild {self._saved_state.guild_id} in channel {self._saved_state.channel_id} iniated by interaction {self._original_interaction_id}", extra={"iname": self._view_name.value})
+
+    def set_message_id(self, message_id:int):
+        """
+        :param int message_id:
+            ID of the Discord message the view belongs to"""
+        self._saved_state.message_id = message_id
+        logging.getLogger("view").info(f"Set message id {self._saved_state.message_id} for view originaly initiated by interaction {self._original_interaction_id}", extra={"iname": self._view_name.value, "id": self._saved_state.message_id})
 
     def restore(self, state:Saved_State, message:discord.Message) -> "Base_View":
         """Restores a existing view from the given state
 
-        *Note: The restore of all attributes and *
+        *Note: The restore of all attributes and ui components*
 
         Warning: If the custom_id of the element has no matching function, the reconstruction for this component will fail!
         
@@ -75,7 +80,7 @@ class Base_View(discord.ui.View, ABC):
 
                 # Attempt to restore the callback
                 try:
-                    callback = self.identify_callback(restored_component.custom_id)
+                    callback = self.identify_callback(component.custom_id)
                 except CallbackNotFound:
                     logging.getLogger("view").error(f"Failed to restore callback for ui element with custom_id={restored_component.custom_id}!", extra={"iname": state.view_name, "id": state.message_id})
 
@@ -88,7 +93,8 @@ class Base_View(discord.ui.View, ABC):
         self.set_attributes(state.state_data)
 
         self._saved_state = state
-        logging.getLogger("view").info(f"Existing view restored on guild ({state.guild_id}) in channel {state.channel_id}", extra={"iname": state.view_name, "id": state.message_id})
+        logging.getLogger("view").info(f"Existing view (timeout={self.timeout}) restored on guild ({state.guild_id}) in channel {state.channel_id}", extra={"iname": state.view_name, "id": state.message_id})
+        return self
 
     async def save_state(self):
         """Saves the state the view is currently in
@@ -100,12 +106,13 @@ class Base_View(discord.ui.View, ABC):
         if len(view_data) == 0:
             view_data = None
         
-        if self._saved_state is None:
-            self._saved_state = await Saved_State.create(self._bot.database, self._guild_id, self._channel_id, self._message_id, view_data, self._view_name, self.timeout)
+        # Update saved data
+        self._saved_state.state_data = view_data
+        await self._saved_state.save()
         
-        logging.getLogger("view").debug(f"Saved view", extra={"iname": self._view_name, "id": self._message_id})
+        logging.getLogger("view").debug(f"Saved view", extra={"iname": self._view_name.value, "id": self._saved_state.message_id})
 
-    def identify_callback(self, custom_id:str) -> function:
+    def identify_callback(self, custom_id:str) -> Callable:
         """Returns the callback method for the matching custom_id
 
         Override if you have custom_ids that dont match the name of the callback function BEFORE calling this super function
@@ -113,7 +120,7 @@ class Base_View(discord.ui.View, ABC):
         :param str custom_id:
             Custom id specified at the creation of the ui element
             
-        :return function:
+        :return Callable:
             Matching function for the given `custom_id`
         
         :raise CallbackNotFound:
@@ -125,8 +132,8 @@ class Base_View(discord.ui.View, ABC):
                 return callback
 
         if self._saved_state is None:
-            raise CallbackNotFound(self._view_name, custom_id)
-        raise CallbackNotFound(self._view_name, custom_id)
+            raise CallbackNotFound(self._view_name.value, custom_id)
+        raise CallbackNotFound(self._view_name.value, custom_id)
 
     def get_attributes(self, filter:list[str] = None, unmangle_attribute_name:bool = False) -> dict[str, Any]:
         """Returns the view specific attributes, as defined in `view_data_attribute_names`
@@ -168,12 +175,14 @@ class Base_View(discord.ui.View, ABC):
                     else:
                         attribute_name = f"{class_name}.{attr}"
 
-                if attribute_name in self._view_data_attribute_names:
-                    if attribute_name in view_data:
-                        raise AttributeNameConflict(self._view_name, attribute_name)
-                    view_data[attribute_name] = value
+                if filter is None or attribute_name not in filter:
+                    continue
+
+                if attribute_name in view_data:
+                    raise AttributeNameConflict(self._view_name.value, attribute_name)
+                view_data[attribute_name] = value
         return view_data
-    
+
     def set_attributes(self, attribute_data:dict[str, Any]):
         """Restores the value of the attributes specified in the dictionary
 
@@ -182,10 +191,21 @@ class Base_View(discord.ui.View, ABC):
         :param dict[str, Any] attribute_data:
             The values of the attributes to be restored"""
         for attribute_name, attribute_value in attribute_data.items():
-            if hasattr(self, attribute_name):
-                setattr(self, attribute_name, attribute_value)
+            if ".__" in attribute_name:
+                # Remangle: Sub.__foo -> _Sub__foo
+                class_name, short_name = attribute_name.split(".__", maxsplit=1)
+                mangled_name = f"_{class_name}__{short_name}"
+            elif "." in attribute_name:
+                # Regular: Base.foo -> foo (set as-is)
+                _, mangled_name = attribute_name.split(".", maxsplit=1)
             else:
-                raise AttributeNotFound(self._view_name, attribute_name)
+                # Already unmangled, use as-is
+                mangled_name = attribute_name
+
+            if hasattr(self, mangled_name):
+                setattr(self, mangled_name, attribute_value)
+            else:
+                raise AttributeNotFound(self._view_name.value, attribute_name)
 
     @staticmethod
     def restore_component(component:Union[discord.Button, discord.SelectMenu, discord.TextInput], callback:Callable, row:int = None) -> Union[discord.ui.Button, discord.ui.Select, discord.ui.UserSelect, discord.ui.RoleSelect, discord.ui.MentionableSelect, discord.ui.TextInput]:
@@ -268,7 +288,7 @@ class Base_View(discord.ui.View, ABC):
                 raise TypeError(f"Invalid type of discord component (type={type(component)})")
         element.callback = callback
         return element
-    
+
     def activate(self):
         """Activates the view, adding it to a list of all active views
         
@@ -277,12 +297,14 @@ class Base_View(discord.ui.View, ABC):
             
         :raises StoppedBefore:
             View was stopped before but is now requested to start"""
-        if self._active:
-            raise AlreadyActive(self._view_name, self._database_id, self.get_attributes(unmangle_attribute_name = True))
+        if self._saved_state.active:
+            raise AlreadyActive(self._view_name.value, self.get_attributes(unmangle_attribute_name = True), self._saved_state.id,)
         if self._stopped:
-            raise StoppedBefore(self._view_name, self._database_id, self.get_attributes(unmangle_attribute_name = True))
-        self._bot.active_views[self._message_id] = self
-        self._active = True
+            raise StoppedBefore(self._view_name.value, self.get_attributes(unmangle_attribute_name = True), self._saved_state.id,)
+        if self._saved_state.message_id is None:
+            raise MessageIdMissing(self._view_name.value)
+        self._bot.active_views[self._saved_state.message_id] = self
+        self._saved_state.active = True
 
     def deactivate(self):
         """Deactivates the view, removing it from the list of all active views
@@ -294,21 +316,26 @@ class Base_View(discord.ui.View, ABC):
             View was never started
         """
         if self._stopped:
-            raise AlreadyStopped(self._view_name, self._database_id, self.get_attributes(unmangle_attribute_name = True))
-        if not self._active:
-            raise NotActive(self._view_name, self._database_id, self.get_attributes(unmangle_attribute_name = True))
-        del self._bot.active_views[self._message_id]
-        self._active = False
+            raise AlreadyStopped(self._view_name.value, self.get_attributes(unmangle_attribute_name = True), self._saved_state.id,)
+        if not self._saved_state.active:
+            raise NotActive(self._view_name.value, self.get_attributes(unmangle_attribute_name = True), self._saved_state.id)
+        del self._bot.active_views[self._saved_state.message_id]
+        self._saved_state.active = False
         self._stopped = True
     
     async def stop(self):
-        logging.getLogger("view").info("View was stopped")
+        logging.getLogger("view").info("View was stopped", extra={"iname": self._view_name.value, "id": self._saved_state.message_id})
         self.deactivate()
         super().stop()
         await self.save_state()
 
     async def on_timeout(self):
-        logging.getLogger("view").info("View has expired")
+        logging.getLogger("view").info("View has expired", extra={"iname": self._view_name.value, "id": self._saved_state.message_id})
         self.deactivate()
         await super().on_timeout()
         await self.save_state()
+
+    @property
+    def view_name(self) -> View_Names:
+        """View_Name enum member"""
+        return self._view_name

@@ -4,6 +4,7 @@ from asyncpg import Connection, UniqueViolationError
 from datetime import datetime
 from database.models.saved_state.enum import View_Names
 from bot import Apollo_Bot
+import json
 
 
 class Saved_State(Base_Model):
@@ -19,11 +20,11 @@ class Saved_State(Base_Model):
     | `id`              | `read-only`  | ID of the row in the database                          |
     | `guild_id`        | `read-only`  | ID of the guild the state is saved for                 |
     | `channel_id`      | `read-only`  | ID of the channel the state is saved for               |
-    | `message_id`      | `read-only`  | ID of the messsage the state belongs to                |
+    | `message_id`      | `read-write` | ID of the messsage the state belongs to                |
     | `state_data`      | `read-write` | Relevant data of the view to be restorable             |
     | `view_name`       | `read-only`  | Enum member of the View_Names                          |
     | `timeout`         | `read-only`  | Number of seconds after the view will expire           |
-    | `active`          | `read-only`  | Indicate if the view is currently loaded               |
+    | `active`          | `read-write` | Indicate if the view is currently loaded & active      |
     | `creation_date`   | `read-only`  | Datetime at wich the save was created the first time   |
     | `last_loaded`     | `read-only`  | Datetime at wich the save was last loaded              |
     | `last_updated`    | `read-only`  | Datetime at wich the save was last updated             |
@@ -31,8 +32,9 @@ class Saved_State(Base_Model):
     LOAD = ""
     SAVE = ""
     DELETE = ""
+    UPDATE_LL = ""
 
-    def __init__(self, database_connection:Connection, id:int, guild_id:int, channel_id:int, message_id:int, state_data:dict, view_name:View_Names, timeout:int, creation_date:datetime, last_loaded:datetime, last_updated:datetime):
+    def __init__(self, database_connection:Connection, id:int, guild_id:int, channel_id:int, message_id:int, state_data:dict, view_name:View_Names, timeout:int, active:bool, creation_date:datetime, last_loaded:datetime, last_updated:datetime):
         super().__init__(database_connection, id)
         self.__guild_id = guild_id
         self.__channel_id = channel_id
@@ -40,6 +42,7 @@ class Saved_State(Base_Model):
         self.__state_data = state_data
         self.__view_name = view_name
         self.__timeout = timeout
+        self.__active = active
         self.__creation_date = creation_date
         self.__last_loaded = last_loaded
         self.__last_updated = last_updated
@@ -48,7 +51,7 @@ class Saved_State(Base_Model):
         return f"Saved_State({self.arguments()}, {self.data()})"
     
     @classmethod
-    def create(cls, database_connection:Connection, guild_id:int, channel_id:int, message_id:int, state_data:dict, view_name:str, timeout:int) -> "Saved_State":
+    def create(cls, database_connection:Connection, guild_id:int, channel_id:int, message_id:int, state_data:dict, view_name:View_Names, timeout:int) -> "Saved_State":
         """Creates a new model with the specified data.
 
         :param Connection database_connection:
@@ -74,7 +77,7 @@ class Saved_State(Base_Model):
 
         :return:
             The created model"""
-        model = Saved_State(database_connection, None, guild_id, channel_id, message_id, state_data, view_name, timeout, datetime.now(), None, None)
+        model = Saved_State(database_connection, None, guild_id, channel_id, message_id, state_data, view_name, timeout, False, datetime.now(), None, None)
         return model
 
     @classmethod
@@ -98,17 +101,21 @@ class Saved_State(Base_Model):
         
         :raises NotFound:
             If the state is not found for the specified channel and guild"""
-        row = await database_connection.fetchrow(cls.LOAD, guild_id, channel_id, message_id, datetime.now())
+        async with database_connection.transaction():
+            row = await database_connection.fetchrow(cls.LOAD, guild_id, channel_id, message_id)
+            await database_connection.execute(cls.UPDATE_LL, guild_id, channel_id, message_id, datetime.now())
+            
         if row is None:
             raise NotFound("Saved_State", {"guild_id": guild_id, "channel_id": channel_id, "message_id": message_id})
-        return Saved_State(database_connection, row["id"], guild_id, channel_id, message_id, row["data"], row["view_name"], row["timeout"], row["creation_date"], row["last_loaded"], row["last_updated"])
+        return Saved_State(database_connection, row["id"], guild_id, channel_id, message_id, json.loads(row["data"]), View_Names(row["view_name"]), row["timeout"], row["active"], row["creation_date"], row["last_loaded"], row["last_updated"])
 
     async def save(self) -> "Saved_State":
         if self._deleted:
             raise NoLongerExists("Saved_State", self.arguments(), self.data())
         
+        self.__last_updated = datetime.now()
         try:
-            self._id = await self._connection.fetchval(self.SAVE, self.__guild_id, self.__channel_id, self.__message_id, self.__data, self.__view_name, self.__timeout, self.__creation_date, self.__last_loaded, self.__last_updated)
+            self._id = await self._connection.fetchval(self.SAVE, self.__guild_id, self.__channel_id, self.__message_id, json.dumps(self.__state_data), self.__view_name.value, self.__timeout, self.__active, self.__creation_date, self.__last_loaded, self.__last_updated)
         except UniqueViolationError:
             raise AlreadyExists("Saved_State", self.arguments())
         self._saved = True
@@ -127,7 +134,7 @@ class Saved_State(Base_Model):
         return {"guild_id": self.__guild_id, "channel_id": self.__channel_id, "message_id": self.__message_id}
 
     def data(self) -> dict:
-        return {"data": self.__data, "view_name": self.__view_name.name, "timeout" : self.__timeout, "creation_date": self.__creation_date}
+        return {"state_data": self.__state_data, "view_name": self.__view_name.name, "timeout" : self.__timeout, "active": self.__active, "creation_date": self.__creation_date, "last_loaded": self.__last_loaded, "last_updated": self.__last_updated}
 
     @property
     def guild_id(self) -> int:
@@ -140,14 +147,22 @@ class Saved_State(Base_Model):
         return self.__channel_id
 
     @property
-    def message_id(self) -> int:
+    def message_id(self) -> int | None:
         """ID of the messsage the state belongs to"""
         return self.__message_id
+    
+    @message_id.setter
+    def message_id(self, value:int):
+        self.__message_id = value
 
     @property
     def state_data(self) -> dict:
         """Relevant data of the view to be restorable"""
-        return self.__data
+        return self.__state_data
+    
+    @state_data.setter
+    def state_data(self, value:dict):
+        self.__state_data = value
 
     @property
     def view_name(self) -> View_Names:
@@ -158,6 +173,15 @@ class Saved_State(Base_Model):
     def timeout(self) -> int:
         """Number of seconds after the view will expire"""
         return self.__timeout
+    
+    @property
+    def active(self) -> bool:
+        """Indicate if the view is currently loaded & active"""
+        return self.__active
+
+    @active.setter
+    def active(self, value:bool):
+        self.__active = value
 
     @property
     def creation_date(self) -> datetime:
@@ -179,3 +203,4 @@ async def setup(bot:Apollo_Bot):
     Saved_State.SAVE = await bot.sql_loader.get_file("dml.saved_state.create_new")
     Saved_State.LOAD = await bot.sql_loader.get_file("dml.saved_state.load_by_specific")
     Saved_State.DELETE = await bot.sql_loader.get_file("dml.saved_state.delete_by_specific")
+    Saved_State.UPDATE_LL = await bot.sql_loader.get_file("dml.saved_state.update_load_datetime")
